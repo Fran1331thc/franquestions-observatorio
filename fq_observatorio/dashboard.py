@@ -363,7 +363,7 @@ try:
             }
             for item in statuses
         )
-        st.dataframe(status_table, width="stretch", hide_index=True)
+        st.dataframe(status_table, use_container_width=True, hide_index=True)
 
     calendar_events = build_calendar_events(
         statuses,
@@ -403,7 +403,7 @@ try:
         )
         st.dataframe(
             calendar_table,
-            width="stretch",
+            use_container_width=True,
             hide_index=True,
             column_config={"Respaldo": st.column_config.LinkColumn("Calendario oficial", display_text="Abrir fuente")},
         )
@@ -413,21 +413,21 @@ try:
             calendar_to_ics(visible_calendar, date.today()).encode("utf-8"),
             file_name=f"FQ_calendario_economico_{date.today().isoformat()}.ics",
             mime="text/calendar; charset=utf-8",
-            width="stretch",
+            use_container_width=True,
         )
         calendar_downloads[1].download_button(
             "Descargar para Excel (.xlsx)",
             dataframe_to_excel(calendar_table),
             file_name=f"FQ_calendario_economico_{date.today().isoformat()}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            width="stretch",
+            use_container_width=True,
         )
         calendar_downloads[2].download_button(
             "Descargar tabla compatible (.csv)",
             ("\ufeff" + calendar_table.to_csv(index=False, sep=";")).encode("utf-8"),
             file_name=f"FQ_calendario_economico_{date.today().isoformat()}.csv",
             mime="text/csv; charset=utf-8",
-            width="stretch",
+            use_container_width=True,
         )
     else:
         st.info("No hay revisiones estimadas dentro del horizonte seleccionado.")
@@ -549,7 +549,7 @@ try:
         ("\ufeff" + economic_snapshot).encode("utf-8"),
         file_name=f"FQ_panorama_economico_{date.today().isoformat()}.txt",
         mime="text/plain; charset=utf-8",
-        width="stretch",
+        use_container_width=True,
     )
 
     for group_name, slugs in INDICATOR_GROUPS.items():
@@ -689,7 +689,7 @@ try:
             ("\ufeff" + research_brief).encode("utf-8"),
             file_name=f"FQ_ficha_{selected}_{analysis['latest_period'].isoformat()}.txt",
             mime="text/plain; charset=utf-8",
-            width="stretch",
+            use_container_width=True,
         )
         indicator_downloads = st.columns(2)
         indicator_downloads[0].download_button(
@@ -697,14 +697,14 @@ try:
             dataframe_to_excel(indicator_table),
             file_name=f"FQ_serie_{selected}_{analysis['latest_period'].isoformat()}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            width="stretch",
+            use_container_width=True,
         )
         indicator_downloads[1].download_button(
             "Descargar serie compatible (.csv)",
             ("\ufeff" + indicator_table.to_csv(index=False, sep=";")).encode("utf-8"),
             file_name=f"FQ_serie_{selected}_{analysis['latest_period'].isoformat()}.csv",
             mime="text/csv; charset=utf-8",
-            width="stretch",
+            use_container_width=True,
         )
         fig = px.line(
             frame,
@@ -715,7 +715,7 @@ try:
         )
         fig.update_layout(margin=dict(l=20, r=20, t=30, b=20))
         fig.update_xaxes(range=[frame["period"].min(), frame["period"].max()])
-        st.plotly_chart(fig, width="stretch")
+        st.plotly_chart(fig, use_container_width=True)
     else:
         st.info("Todavía no hay observaciones cargadas para esta serie.")
 
