@@ -18,7 +18,7 @@ dependencies = [
   "pandas>=2.2,<3",
   "openpyxl>=3.1,<4",
   "pdfplumber>=0.11,<1",
-    "streamlit==1.41.1",
+    "streamlit==1.59.2",
   "plotly>=5.24,<7",
   "lxml>=5,<7",
   "xlrd>=2,<3",
