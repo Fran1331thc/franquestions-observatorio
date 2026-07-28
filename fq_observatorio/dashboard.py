@@ -17,13 +17,15 @@ import fq_observatorio.alert_center as alert_center_module
 import fq_observatorio.publication_calendar as calendar_module
 from fq_observatorio.models import IngestionRun, Observation, Revision, Series
 
-# Streamlit puede conservar módulos antiguos en memoria durante una recarga parcial.
-# Recargarlos evita errores cuando una versión añade nuevas funciones o ajustes.
-config_module = reload(config_module)
-intelligence_module = reload(intelligence_module)
-preferences_module = reload(preferences_module)
-alert_center_module = reload(alert_center_module)
-calendar_module = reload(calendar_module)
+# Streamlit puede conservar módulos antiguos durante el desarrollo local.
+# En producción no deben recargarse: varias sesiones pueden ejecutarse al mismo
+# tiempo y ``importlib.reload`` no es seguro entre hilos.
+if config_module.get_settings().env != "production":
+    config_module = reload(config_module)
+    intelligence_module = reload(intelligence_module)
+    preferences_module = reload(preferences_module)
+    alert_center_module = reload(alert_center_module)
+    calendar_module = reload(calendar_module)
 get_settings = config_module.get_settings
 analyze_series = intelligence_module.analyze_series
 build_fq_reading = intelligence_module.build_fq_reading
