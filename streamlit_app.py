@@ -11,6 +11,7 @@ from fq_observatorio.publication_calendar import (
     build_calendar_events,
     calendar_to_ics,
 )
+from fq_observatorio.panorama_pdf import build_panorama_pdf
 
 
 APP_DIR = Path(__file__).resolve().parent
@@ -330,7 +331,7 @@ st.markdown(
 st.title("FranQuestions — Observatorio Económico")
 st.caption(
     "Datos oficiales de Costa Rica con fuente, fecha y contexto. "
-    "Publicación estable 2.9.9."
+    "Publicación estable 2.10.0."
 )
 
 try:
@@ -513,6 +514,47 @@ with st.expander("Resumen ejecutivo automático"):
         "de referencia distintos; no constituye predicción, recomendación ni "
         "prueba de causalidad."
     )
+
+panorama_records = []
+slug_to_group = {
+    slug: group_name
+    for group_name, group_slugs in GROUPS.items()
+    for slug in group_slugs
+}
+for slug in INDICATORS:
+    if slug not in latest_rows.index:
+        continue
+    row = latest_rows.loc[slug]
+    status = freshness_status(slug, pd.Timestamp(row["period"]))
+    name, unit, source = INDICATORS[slug]
+    panorama_records.append(
+        {
+            "group": slug_to_group[slug],
+            "name": name,
+            "value": format_value(float(row["value"]), unit),
+            "unit": unit,
+            "period": pd.Timestamp(row["period"]).strftime("%d/%m/%Y"),
+            "source": source,
+            "status": status["status"],
+        }
+    )
+
+panorama_pdf = build_panorama_pdf(
+    panorama_records,
+    date.today(),
+    attention_items,
+)
+st.download_button(
+    "Descargar Panorama Económico (.pdf)",
+    panorama_pdf,
+    file_name=f"FQ_Panorama_Economico_{date.today().isoformat()}.pdf",
+    mime="application/pdf",
+    width="stretch",
+)
+st.caption(
+    "Incluye los 12 indicadores, sus fechas, fuentes, estado de actualización "
+    "y una advertencia metodológica."
+)
 
 with st.expander("Mis preferencias"):
     favorite_slugs = st.multiselect(
