@@ -296,6 +296,17 @@ def freshness_status(slug: str, period: pd.Timestamp) -> dict:
     }
 
 
+def latest_statement(slug: str, latest_rows: pd.DataFrame) -> str:
+    """Construye una oración factual con valor, unidad y periodo."""
+    name, unit, _source = INDICATORS[slug]
+    if slug not in latest_rows.index:
+        return f"{name}: sin datos publicados."
+    row = latest_rows.loc[slug]
+    period = pd.Timestamp(row["period"]).strftime("%d/%m/%Y")
+    value = format_value(float(row["value"]), unit)
+    return f"{name}: {value} {unit} ({period})."
+
+
 st.set_page_config(
     page_title="FranQuestions | Observatorio",
     page_icon="📊",
@@ -319,7 +330,7 @@ st.markdown(
 st.title("FranQuestions — Observatorio Económico")
 st.caption(
     "Datos oficiales de Costa Rica con fuente, fecha y contexto. "
-    "Publicación estable 2.9.8."
+    "Publicación estable 2.9.9."
 )
 
 try:
@@ -452,6 +463,56 @@ if visible_calendar:
     )
 else:
     st.info("No hay fechas dentro del horizonte seleccionado.")
+
+with st.expander("Resumen ejecutivo automático"):
+    st.markdown(
+        "- **Precios y condiciones monetarias:** "
+        + " ".join(
+            latest_statement(slug, latest_rows)
+            for slug in ("inflation", "policy-rate", "exchange-rate")
+        )
+    )
+    st.markdown(
+        "- **Actividad y empleo:** "
+        + " ".join(
+            latest_statement(slug, latest_rows)
+            for slug in ("imae", "unemployment", "poverty")
+        )
+    )
+    st.markdown(
+        "- **Finanzas públicas:** "
+        + " ".join(
+            latest_statement(slug, latest_rows)
+            for slug in ("fiscal-balance", "public-debt")
+        )
+    )
+    st.markdown(
+        "- **Sector externo:** "
+        + " ".join(
+            latest_statement(slug, latest_rows)
+            for slug in ("reserves", "exports", "tourism", "fdi")
+        )
+    )
+
+    attention_items = [
+        row["Indicador"]
+        for row in status_rows
+        if not row["Estado"].startswith("🟢")
+    ]
+    if attention_items:
+        st.warning(
+            "**Requieren revisión de fuente o actualización:** "
+            + ", ".join(attention_items)
+            + "."
+        )
+    else:
+        st.success("Los 12 indicadores están dentro de su ventana operativa.")
+
+    st.caption(
+        "Resumen factual y descriptivo. Las series tienen frecuencias y periodos "
+        "de referencia distintos; no constituye predicción, recomendación ni "
+        "prueba de causalidad."
+    )
 
 with st.expander("Mis preferencias"):
     favorite_slugs = st.multiselect(
