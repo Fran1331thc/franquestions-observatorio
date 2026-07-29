@@ -73,6 +73,111 @@ DEFAULT_FAVORITES = (
     "poverty",
 )
 
+FQ_READINGS = {
+    "exchange-rate": {
+        "meaning": "Muestra cuántos colones se requieren para comprar un dólar estadounidense.",
+        "hypotheses": (
+            "Flujos de divisas por exportaciones, turismo o inversión.",
+            "Condiciones financieras internacionales y tasas de interés.",
+            "Expectativas y decisiones del Banco Central.",
+        ),
+    },
+    "policy-rate": {
+        "meaning": "Resume la orientación de la política monetaria del Banco Central.",
+        "hypotheses": (
+            "Trayectoria reciente y esperada de la inflación.",
+            "Actividad económica y condiciones del crédito.",
+            "Decisiones futuras comunicadas por el Banco Central.",
+        ),
+    },
+    "inflation": {
+        "meaning": "Mide el cambio interanual del costo de una canasta representativa de consumo.",
+        "hypotheses": (
+            "Cambios en alimentos, combustibles y servicios.",
+            "Efectos del tipo de cambio y los costos importados.",
+            "Presiones de demanda, oferta y expectativas.",
+        ),
+    },
+    "imae": {
+        "meaning": "Aproxima la trayectoria mensual de la actividad económica, pero no sustituye al PIB.",
+        "hypotheses": (
+            "Sectores que explican la aceleración o desaceleración.",
+            "Diferencias entre régimen especial y régimen definitivo.",
+            "Efectos estacionales y posibles revisiones de la serie.",
+        ),
+    },
+    "unemployment": {
+        "meaning": "Indica qué proporción de la fuerza de trabajo está desempleada.",
+        "hypotheses": (
+            "Cambios en la participación laboral.",
+            "Creación o pérdida de empleo por sector.",
+            "Diferencias por sexo, edad, región y condición de informalidad.",
+        ),
+    },
+    "poverty": {
+        "meaning": "Resume la proporción de hogares cuyo ingreso está por debajo de la línea de pobreza.",
+        "hypotheses": (
+            "Cambios en empleo, salarios e ingresos de los hogares.",
+            "Inflación y costo de la canasta básica.",
+            "Transferencias sociales y diferencias territoriales.",
+        ),
+    },
+    "fiscal-balance": {
+        "meaning": "Compara los ingresos y gastos del Gobierno Central durante el periodo.",
+        "hypotheses": (
+            "Comportamiento de la recaudación y del gasto primario.",
+            "Carga de intereses y costo del financiamiento.",
+            "Efectos extraordinarios o cambios contables.",
+        ),
+    },
+    "public-debt": {
+        "meaning": "Relaciona la deuda del Gobierno Central con el tamaño de la economía.",
+        "hypotheses": (
+            "Balance primario y costo de los intereses.",
+            "Crecimiento nominal del PIB y tipo de cambio.",
+            "Operaciones de financiamiento y revisiones metodológicas.",
+        ),
+    },
+    "reserves": {
+        "meaning": "Muestra los activos externos de reserva administrados por el Banco Central.",
+        "hypotheses": (
+            "Compras o ventas de divisas del Banco Central.",
+            "Desembolsos, pagos externos y movimientos del Gobierno.",
+            "Valoración de activos y cambios metodológicos.",
+        ),
+    },
+    "exports": {
+        "meaning": "Mide el valor de los bienes exportados bajo valoración FOB.",
+        "hypotheses": (
+            "Cambios en volumen y precios internacionales.",
+            "Desempeño por producto, destino y régimen comercial.",
+            "Estacionalidad, revisiones y efectos del tipo de cambio.",
+        ),
+    },
+    "tourism": {
+        "meaning": "Cuenta las llegadas internacionales de turistas registradas en el periodo.",
+        "hypotheses": (
+            "Conectividad aérea y oferta de vuelos.",
+            "Temporada turística y condiciones económicas externas.",
+            "Cambios por mercado de origen y vía de ingreso.",
+        ),
+    },
+    "fdi": {
+        "meaning": "Registra flujos de inversión directa hacia la economía costarricense.",
+        "hypotheses": (
+            "Nuevas inversiones, reinversión de utilidades y deuda entre empresas.",
+            "Diferencias por régimen, sector y país de origen.",
+            "Operaciones excepcionales y revisiones de cifras preliminares.",
+        ),
+    },
+}
+
+VERIFICATION_QUESTIONS = (
+    "¿El movimiento aparece también en sus componentes relacionados?",
+    "¿La fuente publicó una revisión o nota metodológica?",
+    "¿La señal se mantiene al comparar más de un periodo?",
+)
+
 
 def read_observations() -> pd.DataFrame:
     """Lee la base publicada sin conservar conexiones entre sesiones."""
@@ -151,7 +256,7 @@ st.markdown(
 st.title("FranQuestions — Observatorio Económico")
 st.caption(
     "Datos oficiales de Costa Rica con fuente, fecha y contexto. "
-    "Publicación estable 2.9.6."
+    "Publicación estable 2.9.7."
 )
 
 try:
@@ -374,6 +479,37 @@ else:
 
 metric_columns[2].metric("Fuente", source)
 metric_columns[2].caption("Dato oficial")
+
+reading = FQ_READINGS[selected_slug]
+with st.expander("Lectura FranQuestions: qué sabemos y qué falta verificar"):
+    st.markdown("**Hecho comprobado**")
+    fact = (
+        f"El último dato oficial de {name} es "
+        f"{format_value(float(latest['value']), unit)} {unit}, "
+        f"correspondiente al {latest['period'].strftime('%d/%m/%Y')}."
+    )
+    if len(selected) > 1:
+        fact += (
+            f" Frente a la observación anterior cambió "
+            f"{change:+,.2f} {unit}."
+        )
+    st.write(fact)
+
+    st.markdown("**Qué puede significar**")
+    st.write(reading["meaning"])
+
+    st.markdown("**Hipótesis que deben investigarse**")
+    for hypothesis in reading["hypotheses"]:
+        st.markdown(f"- {hypothesis}")
+
+    st.markdown("**Preguntas de verificación**")
+    for question in VERIFICATION_QUESTIONS:
+        st.markdown(f"- {question}")
+
+    st.warning(
+        "Esta lectura es descriptiva: no demuestra causalidad, no es una "
+        "predicción y puede cambiar con nuevas observaciones."
+    )
 
 st.line_chart(
     selected.set_index("period")["value"],
