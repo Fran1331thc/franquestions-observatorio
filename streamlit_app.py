@@ -2,6 +2,7 @@
 
 from pathlib import Path
 import sqlite3
+from datetime import date, timedelta
 
 import pandas as pd
 import streamlit as st
@@ -36,6 +37,28 @@ GROUPS = {
     "Sector externo": ("reserves", "exports", "tourism", "fdi"),
 }
 
+FREQUENCIES = {
+    "exchange-rate": "daily",
+    "policy-rate": "daily",
+    "inflation": "monthly",
+    "imae": "monthly",
+    "unemployment": "monthly",
+    "poverty": "annual",
+    "fiscal-balance": "annual",
+    "public-debt": "annual",
+    "reserves": "monthly",
+    "exports": "monthly",
+    "tourism": "monthly",
+    "fdi": "quarterly",
+}
+
+FRESHNESS_WINDOWS = {
+    "daily": (4, 10),
+    "monthly": (62, 100),
+    "quarterly": (155, 220),
+    "annual": (430, 550),
+}
+
 
 def read_observations() -> pd.DataFrame:
     """Lee la base publicada sin conservar conexiones entre sesiones."""
@@ -63,6 +86,34 @@ def format_value(value: float, unit: str) -> str:
     return f"{value:,.{decimals}f}"
 
 
+def freshness_status(slug: str, period: pd.Timestamp) -> dict:
+    """Clasifica la vigencia con reglas transparentes según la frecuencia."""
+    frequency = FREQUENCIES[slug]
+    fresh_days, warning_days = FRESHNESS_WINDOWS[frequency]
+    latest_date = period.date()
+    age_days = max(0, (date.today() - latest_date).days)
+    if age_days <= fresh_days:
+        return {
+            "status": "Al día",
+            "icon": "🟢",
+            "review_due": latest_date + timedelta(days=fresh_days),
+            "age_days": age_days,
+        }
+    if age_days <= warning_days:
+        return {
+            "status": "Revisar pronto",
+            "icon": "🟡",
+            "review_due": latest_date + timedelta(days=fresh_days),
+            "age_days": age_days,
+        }
+    return {
+        "status": "Actualización pendiente",
+        "icon": "🔴",
+        "review_due": latest_date + timedelta(days=fresh_days),
+        "age_days": age_days,
+    }
+
+
 st.set_page_config(
     page_title="FranQuestions | Observatorio",
     page_icon="📊",
@@ -86,7 +137,7 @@ st.markdown(
 st.title("FranQuestions — Observatorio Económico")
 st.caption(
     "Datos oficiales de Costa Rica con fuente, fecha y contexto. "
-    "Publicación estable 2.9.3."
+    "Publicación estable 2.9.4."
 )
 
 try:
@@ -106,6 +157,41 @@ latest_rows = (
     .tail(1)
     .set_index("slug")
 )
+
+status_rows = []
+for slug in INDICATORS:
+    if slug not in latest_rows.index:
+        continue
+    latest_period = pd.Timestamp(latest_rows.loc[slug, "period"])
+    status = freshness_status(slug, latest_period)
+    status_rows.append(
+        {
+            "Indicador": INDICATORS[slug][0],
+            "Estado": f"{status['icon']} {status['status']}",
+            "Último dato": latest_period.strftime("%d/%m/%Y"),
+            "Revisión recomendada": status["review_due"].strftime("%d/%m/%Y"),
+            "Antigüedad": f"{status['age_days']} días",
+        }
+    )
+
+st.subheader("Estado de actualización")
+status_frame = pd.DataFrame(status_rows)
+status_counts = status_frame["Estado"].value_counts()
+summary_columns = st.columns(3)
+summary_columns[0].metric(
+    "🟢 Al día",
+    int(sum(value.startswith("🟢") for value in status_frame["Estado"])),
+)
+summary_columns[1].metric(
+    "🟡 Revisar pronto",
+    int(sum(value.startswith("🟡") for value in status_frame["Estado"])),
+)
+summary_columns[2].metric(
+    "🔴 Pendientes",
+    int(sum(value.startswith("🔴") for value in status_frame["Estado"])),
+)
+with st.expander("Ver estado de los 12 indicadores"):
+    st.dataframe(status_frame, hide_index=True, width="stretch")
 
 for group_name, slugs in GROUPS.items():
     st.subheader(group_name)
