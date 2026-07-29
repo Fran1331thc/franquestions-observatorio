@@ -64,6 +64,15 @@ FRESHNESS_WINDOWS = {
     "annual": (430, 550),
 }
 
+DEFAULT_FAVORITES = (
+    "exchange-rate",
+    "inflation",
+    "imae",
+    "policy-rate",
+    "unemployment",
+    "poverty",
+)
+
 
 def read_observations() -> pd.DataFrame:
     """Lee la base publicada sin conservar conexiones entre sesiones."""
@@ -142,7 +151,7 @@ st.markdown(
 st.title("FranQuestions — Observatorio Económico")
 st.caption(
     "Datos oficiales de Costa Rica con fuente, fecha y contexto. "
-    "Publicación estable 2.9.5."
+    "Publicación estable 2.9.6."
 )
 
 try:
@@ -275,6 +284,47 @@ if visible_calendar:
     )
 else:
     st.info("No hay fechas dentro del horizonte seleccionado.")
+
+with st.expander("Mis preferencias"):
+    favorite_slugs = st.multiselect(
+        "Indicadores favoritos",
+        options=list(INDICATORS),
+        default=list(DEFAULT_FAVORITES),
+        max_selections=6,
+        format_func=lambda slug: INDICATORS[slug][0],
+        help="Elige hasta seis indicadores para mantener una vista breve y útil.",
+        key="favorite_indicators",
+    )
+    st.caption(
+        "Esta selección se conserva durante la sesión actual. "
+        "La persistencia entre dispositivos se añadirá cuando exista autenticación."
+    )
+
+st.subheader("Mis indicadores")
+if favorite_slugs:
+    favorite_rows = [
+        (slug, latest_rows.loc[slug])
+        for slug in favorite_slugs
+        if slug in latest_rows.index
+    ]
+    for start in range(0, len(favorite_rows), 3):
+        favorite_columns = st.columns(3)
+        for column, (slug, row) in zip(
+            favorite_columns,
+            favorite_rows[start : start + 3],
+        ):
+            name, unit, source = INDICATORS[slug]
+            status = freshness_status(slug, pd.Timestamp(row["period"]))
+            with column.container(border=True):
+                st.markdown(f"**{name}**")
+                st.metric("Último dato", format_value(float(row["value"]), unit))
+                st.caption(unit)
+                st.caption(
+                    f"{pd.Timestamp(row['period']).strftime('%d/%m/%Y')} · "
+                    f"{status['icon']} {status['status']}"
+                )
+else:
+    st.info("Selecciona al menos un indicador en Mis preferencias.")
 
 for group_name, slugs in GROUPS.items():
     st.subheader(group_name)
