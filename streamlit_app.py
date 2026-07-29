@@ -178,6 +178,69 @@ VERIFICATION_QUESTIONS = (
     "¿La señal se mantiene al comparar más de un periodo?",
 )
 
+RELATED_SIGNALS = {
+    "exchange-rate": (
+        ("reserves", "Capacidad de amortiguar choques externos."),
+        ("inflation", "Posible transmisión de costos importados hacia los precios."),
+        ("policy-rate", "Condiciones monetarias relativas y expectativas."),
+    ),
+    "policy-rate": (
+        ("inflation", "Principal referencia para evaluar presiones de precios."),
+        ("exchange-rate", "Canal financiero y de expectativas monetarias."),
+        ("imae", "Contexto de actividad económica para la decisión de tasas."),
+    ),
+    "inflation": (
+        ("policy-rate", "Respuesta de política monetaria frente a los precios."),
+        ("exchange-rate", "Posible transmisión de costos importados."),
+        ("imae", "Contexto de demanda y actividad económica."),
+    ),
+    "imae": (
+        ("unemployment", "Contraste entre actividad y capacidad de generar empleo."),
+        ("exports", "Demanda externa y producción vinculada al comercio."),
+        ("policy-rate", "Condiciones financieras que pueden influir en la actividad."),
+    ),
+    "unemployment": (
+        ("imae", "Contraste entre producción y mercado laboral."),
+        ("poverty", "Relación contextual entre empleo e ingresos de los hogares."),
+        ("inflation", "Efecto del costo de vida sobre el ingreso real."),
+    ),
+    "poverty": (
+        ("unemployment", "Acceso al empleo y generación de ingresos."),
+        ("inflation", "Poder adquisitivo y costo de la canasta básica."),
+        ("imae", "Contexto general de crecimiento y actividad."),
+    ),
+    "fiscal-balance": (
+        ("public-debt", "Los déficits persistentes aumentan las necesidades de deuda."),
+        ("policy-rate", "Condiciones financieras y costo de financiamiento."),
+        ("imae", "La actividad influye en recaudación y algunos gastos."),
+    ),
+    "public-debt": (
+        ("fiscal-balance", "Flujo fiscal que modifica las necesidades de financiamiento."),
+        ("policy-rate", "Referencia para las condiciones generales de tasas."),
+        ("exchange-rate", "Puede afectar la valoración de obligaciones en moneda extranjera."),
+    ),
+    "reserves": (
+        ("exchange-rate", "Mercado cambiario y capacidad de respuesta externa."),
+        ("exports", "Una fuente potencial de entrada de divisas."),
+        ("tourism", "Ingresos de divisas asociados a visitantes internacionales."),
+    ),
+    "exports": (
+        ("imae", "Producción y actividad de sectores exportadores."),
+        ("exchange-rate", "Contexto de competitividad y valoración en colones."),
+        ("reserves", "Vínculo con la disponibilidad agregada de divisas."),
+    ),
+    "tourism": (
+        ("exchange-rate", "Contexto de precios relativos para visitantes."),
+        ("reserves", "Ingresos externos y disponibilidad de divisas."),
+        ("imae", "Actividad de servicios vinculados al turismo."),
+    ),
+    "fdi": (
+        ("exchange-rate", "Condiciones cambiarias para flujos de capital."),
+        ("reserves", "Contexto de la posición externa del país."),
+        ("imae", "Entorno de actividad y capacidad productiva."),
+    ),
+}
+
 
 def read_observations() -> pd.DataFrame:
     """Lee la base publicada sin conservar conexiones entre sesiones."""
@@ -256,7 +319,7 @@ st.markdown(
 st.title("FranQuestions — Observatorio Económico")
 st.caption(
     "Datos oficiales de Costa Rica con fuente, fecha y contexto. "
-    "Publicación estable 2.9.7."
+    "Publicación estable 2.9.8."
 )
 
 try:
@@ -510,6 +573,35 @@ with st.expander("Lectura FranQuestions: qué sabemos y qué falta verificar"):
         "Esta lectura es descriptiva: no demuestra causalidad, no es una "
         "predicción y puede cambiar con nuevas observaciones."
     )
+
+with st.expander("Señales relacionadas: contraste entre indicadores"):
+    st.caption(
+        "Estas relaciones orientan la investigación. Que dos indicadores se "
+        "muevan al mismo tiempo no demuestra que uno cause al otro."
+    )
+    related_columns = st.columns(3)
+    for column, (related_slug, relationship) in zip(
+        related_columns,
+        RELATED_SIGNALS[selected_slug],
+    ):
+        related_name, related_unit, related_source = INDICATORS[related_slug]
+        with column.container(border=True):
+            st.markdown(f"**{related_name}**")
+            if related_slug not in latest_rows.index:
+                st.metric("Último dato", "Sin datos")
+                st.caption(relationship)
+                continue
+            related_row = latest_rows.loc[related_slug]
+            st.metric(
+                "Último dato",
+                format_value(float(related_row["value"]), related_unit),
+            )
+            st.caption(related_unit)
+            st.caption(
+                f"{pd.Timestamp(related_row['period']).strftime('%d/%m/%Y')} · "
+                f"{related_source}"
+            )
+            st.write(relationship)
 
 st.line_chart(
     selected.set_index("period")["value"],
