@@ -331,7 +331,7 @@ st.markdown(
 st.title("FranQuestions — Observatorio Económico")
 st.caption(
     "Datos oficiales de Costa Rica con fuente, fecha y contexto. "
-    "Publicación estable 2.11.0."
+    "Publicación estable 2.12.0."
 )
 
 if "show_quick_start" not in st.session_state:
@@ -763,3 +763,145 @@ with st.container(border=True):
         "Revise siempre la fecha, la unidad, la fuente y las notas metodológicas "
         "antes de citar o interpretar el indicador."
     )
+
+st.divider()
+st.subheader("Comparador de señales")
+st.caption(
+    "Compara dos indicadores con una escala estadística común. Esto permite "
+    "contrastar sus trayectorias sin confundir sus unidades originales."
+)
+
+comparison_columns = st.columns([2, 2, 1])
+with comparison_columns[0]:
+    first_comparison_slug = st.selectbox(
+        "Primer indicador",
+        list(INDICATORS),
+        index=list(INDICATORS).index("inflation"),
+        format_func=lambda slug: INDICATORS[slug][0],
+        key="comparison_first",
+    )
+with comparison_columns[1]:
+    second_comparison_slug = st.selectbox(
+        "Segundo indicador",
+        list(INDICATORS),
+        index=list(INDICATORS).index("policy-rate"),
+        format_func=lambda slug: INDICATORS[slug][0],
+        key="comparison_second",
+    )
+with comparison_columns[2]:
+    comparison_horizon = st.selectbox(
+        "Periodo",
+        ["2 años", "5 años", "Todo"],
+        index=1,
+        key="comparison_horizon",
+    )
+
+if first_comparison_slug == second_comparison_slug:
+    st.info("Selecciona dos indicadores diferentes para realizar la comparación.")
+else:
+    horizon_days = {"2 años": 730, "5 años": 1826, "Todo": None}
+    cutoff = None
+    if horizon_days[comparison_horizon] is not None:
+        cutoff = pd.Timestamp.now().normalize() - pd.Timedelta(
+            days=horizon_days[comparison_horizon]
+        )
+
+    standardized_parts = []
+    comparison_metrics = []
+    for comparison_slug in (first_comparison_slug, second_comparison_slug):
+        comparison_name = INDICATORS[comparison_slug][0]
+        comparison_frame = observations.loc[
+            observations["slug"] == comparison_slug,
+            ["period", "value"],
+        ].copy()
+        comparison_frame["period"] = pd.to_datetime(comparison_frame["period"])
+        comparison_frame = comparison_frame.sort_values("period")
+        if cutoff is not None:
+            comparison_frame = comparison_frame.loc[
+                comparison_frame["period"] >= cutoff
+            ]
+
+        comparison_values = pd.to_numeric(
+            comparison_frame["value"], errors="coerce"
+        )
+        comparison_frame = comparison_frame.loc[
+            comparison_values.notna()
+        ].copy()
+        comparison_values = comparison_values.dropna()
+        comparison_std = float(comparison_values.std(ddof=0))
+        if len(comparison_frame) >= 3 and comparison_std > 1e-12:
+            comparison_mean = float(comparison_values.mean())
+            comparison_frame["Posición estandarizada"] = (
+                comparison_frame["value"] - comparison_mean
+            ) / comparison_std
+            comparison_frame["Indicador"] = comparison_name
+            standardized_parts.append(comparison_frame)
+            comparison_metrics.append(
+                (
+                    comparison_name,
+                    float(comparison_frame.iloc[-1]["Posición estandarizada"]),
+                    comparison_frame.iloc[-1]["period"],
+                )
+            )
+
+    if len(standardized_parts) != 2:
+        st.warning(
+            "No hay suficientes observaciones variables dentro del periodo "
+            "elegido para comparar ambos indicadores."
+        )
+    else:
+        standardized_data = pd.concat(
+            standardized_parts,
+            ignore_index=True,
+        )
+        metric_pair = st.columns(2)
+        for metric_column, (metric_name, metric_value, metric_period) in zip(
+            metric_pair,
+            comparison_metrics,
+        ):
+            metric_column.metric(
+                metric_name,
+                f"{metric_value:+.2f}",
+            )
+            metric_column.caption(
+                f"Posición frente a su promedio · "
+                f"{metric_period.strftime('%d/%m/%Y')}"
+            )
+
+        st.line_chart(
+            standardized_data,
+            x="period",
+            y="Posición estandarizada",
+            color="Indicador",
+            x_label="Fecha",
+            y_label="Desviaciones estándar",
+        )
+        st.info(
+            "**Cómo leerlo:** 0 es el promedio de cada indicador durante el "
+            "periodo elegido; +1 está una desviación estándar por encima y -1 "
+            "una por debajo. Las líneas conservan sus fechas observadas y no "
+            "se rellenan artificialmente."
+        )
+        st.warning(
+            "Una trayectoria parecida no demuestra causalidad. Las fuentes, "
+            "frecuencias, revisiones y rezagos de publicación pueden ser distintos."
+        )
+
+        comparison_export = standardized_data.rename(
+            columns={
+                "period": "Fecha",
+                "value": "Valor original",
+            }
+        )[["Fecha", "Indicador", "Valor original", "Posición estandarizada"]]
+        st.download_button(
+            "Descargar comparación (.csv)",
+            data=comparison_export.to_csv(
+                index=False,
+                sep=";",
+                decimal=",",
+                encoding="utf-8-sig",
+            ).encode("utf-8-sig"),
+            file_name="FQ_comparador_indicadores.csv",
+            mime="text/csv",
+            use_container_width=True,
+        )
