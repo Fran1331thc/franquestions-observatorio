@@ -331,8 +331,50 @@ st.markdown(
 st.title("FranQuestions — Observatorio Económico")
 st.caption(
     "Datos oficiales de Costa Rica con fuente, fecha y contexto. "
-    "Publicación estable 2.10.0."
+    "Publicación estable 2.11.0."
 )
+
+if "show_quick_start" not in st.session_state:
+    st.session_state.show_quick_start = True
+
+if st.session_state.show_quick_start:
+    with st.container(border=True):
+        st.subheader("Empieza aquí")
+        st.caption(
+            "En menos de un minuto puedes conocer la situación, elegir lo que "
+            "quieres vigilar y profundizar con evidencia."
+        )
+        quick_start_columns = st.columns(3)
+        with quick_start_columns[0]:
+            st.markdown("**1. Revisa el estado**")
+            st.write(
+                "Los colores indican si cada fuente está al día o necesita revisión."
+            )
+        with quick_start_columns[1]:
+            st.markdown("**2. Elige tus seis indicadores**")
+            st.write(
+                "Usa Mis preferencias para crear una vista breve con tus prioridades."
+            )
+        with quick_start_columns[2]:
+            st.markdown("**3. Explora y descarga**")
+            st.write(
+                "Compara periodos, revisa la fuente y descarga datos o el panorama PDF."
+            )
+        st.info(
+            "FranQuestions describe y organiza evidencia. No presenta sus lecturas "
+            "como predicciones, recomendaciones ni pruebas de causalidad."
+        )
+        if st.button("Entendido, ocultar guía", key="dismiss_quick_start"):
+            st.session_state.show_quick_start = False
+            st.rerun()
+else:
+    if st.button(
+        "¿Cómo usar FranQuestions?",
+        key="open_quick_start",
+        help="Vuelve a mostrar la guía inicial.",
+    ):
+        st.session_state.show_quick_start = True
+        st.rerun()
 
 try:
     observations = read_observations()
