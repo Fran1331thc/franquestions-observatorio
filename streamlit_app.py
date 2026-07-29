@@ -7,6 +7,11 @@ from datetime import date, timedelta
 import pandas as pd
 import streamlit as st
 
+from fq_observatorio.publication_calendar import (
+    build_calendar_events,
+    calendar_to_ics,
+)
+
 
 APP_DIR = Path(__file__).resolve().parent
 DATABASE = APP_DIR / "franquestions.db"
@@ -137,7 +142,7 @@ st.markdown(
 st.title("FranQuestions — Observatorio Económico")
 st.caption(
     "Datos oficiales de Costa Rica con fuente, fecha y contexto. "
-    "Publicación estable 2.9.4."
+    "Publicación estable 2.9.5."
 )
 
 try:
@@ -159,11 +164,26 @@ latest_rows = (
 )
 
 status_rows = []
+status_records = []
 for slug in INDICATORS:
     if slug not in latest_rows.index:
         continue
     latest_period = pd.Timestamp(latest_rows.loc[slug, "period"])
     status = freshness_status(slug, latest_period)
+    status_records.append(
+        {
+            "slug": slug,
+            "latest_period": latest_period.date(),
+            "review_due": status["review_due"],
+            "status": (
+                "current"
+                if status["status"] == "Al día"
+                else "review"
+                if status["status"] == "Revisar pronto"
+                else "overdue"
+            ),
+        }
+    )
     status_rows.append(
         {
             "Indicador": INDICATORS[slug][0],
@@ -192,6 +212,69 @@ summary_columns[2].metric(
 )
 with st.expander("Ver estado de los 12 indicadores"):
     st.dataframe(status_frame, hide_index=True, width="stretch")
+
+calendar_events = build_calendar_events(
+    status_records,
+    {slug: values[0] for slug, values in INDICATORS.items()},
+    {slug: values[2] for slug, values in INDICATORS.items()},
+)
+st.subheader("Calendario económico")
+st.caption(
+    "Combina fechas oficiales conocidas y revisiones operativas estimadas. "
+    "Las instituciones pueden modificar sus calendarios."
+)
+horizon_days = st.selectbox(
+    "Horizonte",
+    (30, 60, 90, 180, 365),
+    index=2,
+    format_func=lambda days: f"Próximos {days} días",
+)
+calendar_limit = date.today() + timedelta(days=horizon_days)
+visible_calendar = [
+    event
+    for event in calendar_events
+    if date.today() <= event["date"] <= calendar_limit
+]
+if visible_calendar:
+    calendar_frame = pd.DataFrame(
+        {
+            "Fecha o periodo": event.get("date_label")
+            or event["date"].strftime("%d/%m/%Y"),
+            "Indicador": event["name"],
+            "Fuente": event["source"],
+            "Tipo": event["confirmation"],
+            "Calendario oficial": event.get("source_url") or "",
+        }
+        for event in visible_calendar
+    )
+    st.dataframe(
+        calendar_frame,
+        hide_index=True,
+        width="stretch",
+        column_config={
+            "Calendario oficial": st.column_config.LinkColumn(
+                "Calendario oficial",
+                display_text="Abrir fuente",
+            )
+        },
+    )
+    calendar_downloads = st.columns(2)
+    calendar_downloads[0].download_button(
+        "Añadir a mi calendario (.ics)",
+        calendar_to_ics(visible_calendar, date.today()).encode("utf-8"),
+        file_name=f"FQ_calendario_economico_{date.today().isoformat()}.ics",
+        mime="text/calendar; charset=utf-8",
+        width="stretch",
+    )
+    calendar_downloads[1].download_button(
+        "Descargar tabla compatible (.csv)",
+        ("\ufeff" + calendar_frame.to_csv(index=False, sep=";")).encode("utf-8"),
+        file_name=f"FQ_calendario_economico_{date.today().isoformat()}.csv",
+        mime="text/csv; charset=utf-8",
+        width="stretch",
+    )
+else:
+    st.info("No hay fechas dentro del horizonte seleccionado.")
 
 for group_name, slugs in GROUPS.items():
     st.subheader(group_name)
