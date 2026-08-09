@@ -1,1 +1,3 @@
-__version__ = "0.1.0"
+"""Paquete principal de FranQuestions Observatorio."""
+
+__version__ = "2.12.1"
