@@ -1,4 +1,4 @@
-# FranQuestions — Observatorio Económico v2.9.2
+# FranQuestions — Observatorio Económico v2.12.1
 
 Repositorio funcional del observatorio macroeconomico de Costa Rica. Incluye 12 indicadores, PostgreSQL, conectores piloto, controles de calidad, API interna y dashboard publico.
 
@@ -9,6 +9,8 @@ La versión 2.8.0 incorpora una presentación adaptable para teléfonos: título
 La versión 2.9.1 mejora el calendario económico y sus descargas: genera eventos `.ics`, un libro `.xlsx` con columnas reales y una tabla `.csv` compatible con la configuración regional en español.
 
 La versión 2.9.2 extiende las descargas de Excel y CSV a cada uno de los 12 indicadores desde el explorador, incluyendo fecha, valor, unidad, nombre del indicador y fuente oficial.
+
+La versión 2.12.1 mejora la navegación móvil: las tablas públicas ya no capturan el desplazamiento y los gráficos se abren en modo navegación, con zoom y movimiento opcionales. También conserva el recorrido inicial, el panorama PDF y los controles locales de actualización, auditoría, respaldo y recuperación. El número de versión se toma de una sola fuente compartida por el paquete, la API y las interfaces.
 
 > Estado: MVP local probado. La base incluida contiene 12 series obtenidas de los archivos oficiales conservados en el respaldo. Antes de citar un valor, revise siempre su fecha, unidad y nota metodológica.
 
@@ -33,6 +35,9 @@ El **Calendario económico** muestra fechas operativas estimadas para revisar la
 - Estado de vigencia para cada serie, con resumen de indicadores al día, fuentes revisadas sin dato nuevo, próximos a revisión y pendientes.
 - Primera capa de inteligencia descriptiva: cambio reciente, comparación interanual, tendencia y explicación automática neutral.
 - Iniciador de Windows de doble clic con comprobaciones y apertura automática.
+- Actualizador local con vista previa, comparación contra la base vigente y confirmación humana.
+- Respaldos SQLite manuales y automáticos, descarga de la copia más reciente y recuperación protegida.
+- Historial de ingestas y rechazo seguro de archivos que no aportan datos nuevos ni revisiones reales.
 - Pruebas de catalogo, conectores, validacion y API.
 
 ## Inicio sencillo en Windows
@@ -303,6 +308,56 @@ from fq_observatorio.connectors import BCCRConnector
 rows = BCCRConnector().fetch("318", date(2026, 1, 1), date(2026, 1, 31))
 ```
 
+La actualizacion programable usa `update_bccr_series`. Antes de consultar la
+fuente crea un registro en `ingestion_runs`; si faltan credenciales, falla la
+red o la respuesta es invalida, el intento queda marcado como `failed` y las
+observaciones existentes permanecen intactas. Solo se admiten codigos
+numericos del webservice que hayan sido confirmados en el catalogo oficial.
+
+```python
+from datetime import date
+from fq_observatorio.db import SessionLocal
+from fq_observatorio.source_updates import update_bccr_series
+
+with SessionLocal() as session:
+    report = update_bccr_series(
+        session,
+        "exchange-rate",
+        date(2026, 8, 1),
+        date(2026, 8, 31),
+    )
+```
+
+La tarea del tipo de cambio funciona en modo seguro por defecto. Sin
+argumentos solo presenta el periodo que consultaria. `--apply` exige las
+credenciales, crea un respaldo y aplica exclusivamente filas que superen las
+validaciones.
+
+```powershell
+python -m fq_observatorio.exchange_rate_job
+python -m fq_observatorio.exchange_rate_job --apply
+```
+
+La misma operacion esta disponible en la herramienta local dentro de
+**Historial y control de actualizaciones**. El boton permanece deshabilitado
+mientras falten las credenciales del BCCR.
+
+## Plan de actualizacion del catalogo
+
+La herramienta interna genera un plan para los 12 indicadores con ultimo dato,
+ventana de revision, frecuencia observada, mecanismo y requisito. Todas las
+ventanas incluyen solapamiento para detectar revisiones y todas las escrituras
+requieren confirmacion.
+
+- **Tipo de cambio:** preparado para el webservice BCCR; espera credenciales.
+- **Otros 11 indicadores:** disponibles mediante sus archivos oficiales con
+  vista previa, respaldo, validacion y confirmacion humana.
+- **Deuda/PIB:** exige dos archivos oficiales para no mezclar saldos de deuda
+  con una referencia de PIB incompatible.
+
+No se presenta como automatica ninguna fuente cuyo codigo, contrato de datos o
+condiciones de uso no hayan sido confirmados oficialmente.
+
 ### INEC
 
 INEC publica paginas tematicas, archivos y microdatos, pero no todos comparten URL o columnas. Configure un CSV oficial:
@@ -317,11 +372,27 @@ from fq_observatorio.connectors import INECConnector
 rows = INECConnector().fetch(date_column="fecha", value_column="tasa")
 ```
 
+`update_inec_csv_series` ofrece la misma proteccion para recursos CSV cuya URL
+y columnas hayan sido verificadas. Los archivos Excel, PDF y cuadros con
+formatos particulares siguen utilizando el actualizador local con vista previa
+y confirmacion humana.
+
 Referencias: [empleo](https://inec.cr/estadisticas-fuentes/encuestas/encuesta-continua-empleo), [pobreza](https://inec.cr/estadisticas-fuentes/encuestas/encuesta-nacional-hogares) e [IPC](https://inec.cr/estadisticas-fuentes/estadisticas-economicas/indice-precios-consumidor).
 
 ## Calidad y pruebas
 
 `validate_series(rows, frequency)` informa `missing`, `duplicate`, `invalid_date`, `extreme_change` y `frequency_gap`. Un salto extremo requiere revision; no prueba por si solo que el dato sea erroneo.
+
+La auditoria integral revisa las 12 series, sus metadatos, cobertura, fechas,
+duplicados, rangos amplios, frecuencia observada y capacidad de comparacion en
+una ventana de cinco anos. Los resultados reproducibles se guardan en
+`audit_reports/auditoria_indicadores.md` y
+`audit_reports/auditoria_indicadores.json`.
+
+```powershell
+python -m fq_observatorio.audit
+python -m unittest discover -s tests -v
+```
 
 ```powershell
 pytest
@@ -354,9 +425,12 @@ tests/                 pruebas basicas
 
 ## Pendiente para produccion
 
-1. Confirmar y versionar codigos exactos de todas las series BCCR.
-2. Crear adaptadores específicos para INEC, Hacienda, PROCOMER e ICT.
-3. Orquestar ingestas y escribir revisiones de forma transaccional.
-4. Sustituir datos demo por series oficiales y registrar metodologias/licencias.
-5. Añadir Alembic, autenticacion, cache, monitoreo y despliegue seguro.
-6. Calibrar alertas por serie y probar contra respuestas oficiales controladas.
+1. Obtener y validar las credenciales oficiales del webservice del BCCR; mientras tanto se mantiene la carga manual controlada.
+2. Automatizar gradualmente las fuentes que hoy requieren archivos oficiales descargados por una persona.
+3. Versionar formalmente metodologias, licencias y cambios de estructura publicados por cada institucion.
+4. Migrar la persistencia de produccion a PostgreSQL administrado antes de admitir multiples operadores.
+5. Incorporar autenticacion, permisos, monitoreo, telemetria y un procedimiento formal de despliegue y reversión.
+6. Ejecutar pruebas de aceptacion con usuarios, navegadores y telefonos reales antes del lanzamiento publico funcional.
+7. Calibrar alertas por serie con nuevas publicaciones oficiales y documentar falsos positivos.
+
+El estado verificable del punto de control actual se resume en `ESTADO_DEL_PROYECTO.md`.
