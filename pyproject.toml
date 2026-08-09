@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "franquestions-observatorio"
-version = "2.2.1"
+version = "2.12.1"
 description = "MVP del Observatorio Economico FranQuestions"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -18,7 +18,8 @@ dependencies = [
   "pandas>=2.2,<3",
   "openpyxl>=3.1,<4",
   "pdfplumber>=0.11,<1",
-    "streamlit==1.59.2",
+  "reportlab>=4.2,<5",
+  "streamlit==1.59.2",
   "plotly>=5.24,<7",
   "lxml>=5,<7",
   "xlrd>=2,<3",

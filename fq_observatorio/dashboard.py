@@ -7,6 +7,7 @@ from importlib import reload
 from io import BytesIO
 from sqlalchemy import select
 
+from fq_observatorio import __version__
 from fq_observatorio.catalog import CATALOG
 from fq_observatorio.db import SessionLocal
 from fq_observatorio.freshness import evaluate_freshness
@@ -104,7 +105,10 @@ def persist_preferences(values: dict) -> dict:
 
 st.set_page_config(page_title="FranQuestions | Observatorio", page_icon="📊", layout="wide")
 st.markdown('<h1 translate="no" class="notranslate">FranQuestions — Observatorio Económico</h1>', unsafe_allow_html=True)
-st.caption("Datos oficiales de Costa Rica con fuente, fecha y contexto. Versión preliminar 2.9.2")
+st.caption(
+    f"Datos oficiales de Costa Rica con fuente, fecha y contexto. "
+    f"Versión preliminar {__version__}"
+)
 if settings.env != "production":
     st.markdown("[🔄 **Actualizar datos oficiales**](http://127.0.0.1:8503)")
 st.markdown(
@@ -363,7 +367,9 @@ try:
             }
             for item in statuses
         )
-        st.dataframe(status_table, use_container_width=True, hide_index=True)
+        # Una tabla estática permite desplazar la página con un dedo sin que la
+        # cuadrícula capture el gesto, especialmente en pantallas pequeñas.
+        st.table(status_table)
 
     calendar_events = build_calendar_events(
         statuses,
@@ -401,33 +407,33 @@ try:
             }
             for event in visible_calendar
         )
-        st.dataframe(
-            calendar_table,
-            use_container_width=True,
-            hide_index=True,
-            column_config={"Respaldo": st.column_config.LinkColumn("Calendario oficial", display_text="Abrir fuente")},
-        )
+        st.table(calendar_table.drop(columns=["Respaldo"]))
+        with st.expander("Abrir fuentes oficiales del calendario"):
+            for event in visible_calendar:
+                source_url = event.get("source_url")
+                if source_url:
+                    st.markdown(f"- [{event['name']} — {event['source']}]({source_url})")
         calendar_downloads = st.columns(3)
         calendar_downloads[0].download_button(
             "Añadir a mi calendario (.ics)",
             calendar_to_ics(visible_calendar, date.today()).encode("utf-8"),
             file_name=f"FQ_calendario_economico_{date.today().isoformat()}.ics",
             mime="text/calendar; charset=utf-8",
-            use_container_width=True,
+            width="stretch",
         )
         calendar_downloads[1].download_button(
             "Descargar para Excel (.xlsx)",
             dataframe_to_excel(calendar_table),
             file_name=f"FQ_calendario_economico_{date.today().isoformat()}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            use_container_width=True,
+            width="stretch",
         )
         calendar_downloads[2].download_button(
             "Descargar tabla compatible (.csv)",
             ("\ufeff" + calendar_table.to_csv(index=False, sep=";")).encode("utf-8"),
             file_name=f"FQ_calendario_economico_{date.today().isoformat()}.csv",
             mime="text/csv; charset=utf-8",
-            use_container_width=True,
+            width="stretch",
         )
     else:
         st.info("No hay revisiones estimadas dentro del horizonte seleccionado.")
@@ -549,7 +555,7 @@ try:
         ("\ufeff" + economic_snapshot).encode("utf-8"),
         file_name=f"FQ_panorama_economico_{date.today().isoformat()}.txt",
         mime="text/plain; charset=utf-8",
-        use_container_width=True,
+        width="stretch",
     )
 
     for group_name, slugs in INDICATOR_GROUPS.items():
@@ -689,7 +695,7 @@ try:
             ("\ufeff" + research_brief).encode("utf-8"),
             file_name=f"FQ_ficha_{selected}_{analysis['latest_period'].isoformat()}.txt",
             mime="text/plain; charset=utf-8",
-            use_container_width=True,
+            width="stretch",
         )
         indicator_downloads = st.columns(2)
         indicator_downloads[0].download_button(
@@ -697,14 +703,14 @@ try:
             dataframe_to_excel(indicator_table),
             file_name=f"FQ_serie_{selected}_{analysis['latest_period'].isoformat()}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            use_container_width=True,
+            width="stretch",
         )
         indicator_downloads[1].download_button(
             "Descargar serie compatible (.csv)",
             ("\ufeff" + indicator_table.to_csv(index=False, sep=";")).encode("utf-8"),
             file_name=f"FQ_serie_{selected}_{analysis['latest_period'].isoformat()}.csv",
             mime="text/csv; charset=utf-8",
-            use_container_width=True,
+            width="stretch",
         )
         fig = px.line(
             frame,
@@ -715,7 +721,31 @@ try:
         )
         fig.update_layout(margin=dict(l=20, r=20, t=30, b=20))
         fig.update_xaxes(range=[frame["period"].min(), frame["period"].max()])
-        st.plotly_chart(fig, use_container_width=True)
+        interactive_chart = st.toggle(
+            "Activar zoom y movimiento del gráfico",
+            value=False,
+            help=(
+                "En celular conviene dejarlo apagado para desplazarse por la página. "
+                "Actívelo solo cuando quiera ampliar o mover el gráfico."
+            ),
+            key=f"interactive_chart_{selected}",
+        )
+        fig.update_layout(dragmode="zoom" if interactive_chart else False)
+        st.plotly_chart(
+            fig,
+            width="stretch",
+            config={
+                "staticPlot": not interactive_chart,
+                "displayModeBar": interactive_chart,
+                "scrollZoom": False,
+                "responsive": True,
+            },
+        )
+        if not interactive_chart:
+            st.caption(
+                "Modo navegación activo: el gráfico no captura gestos. "
+                "Active la interacción solo cuando quiera explorarlo."
+            )
     else:
         st.info("Todavía no hay observaciones cargadas para esta serie.")
 
