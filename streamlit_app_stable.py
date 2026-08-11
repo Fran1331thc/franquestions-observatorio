@@ -25,7 +25,11 @@ INDICATORS = {
     "imae": ("IMAE tendencia-ciclo", "% interanual", "BCCR"),
     "unemployment": ("Tasa de desempleo", "% de la fuerza de trabajo", "INEC"),
     "poverty": ("Hogares en pobreza", "% de hogares", "INEC"),
-    "fiscal-balance": ("Balance financiero", "% del PIB", "Ministerio de Hacienda"),
+    "fiscal-balance": (
+        "Balance financiero del Gobierno Central",
+        "% del PIB",
+        "Ministerio de Hacienda",
+    ),
     "public-debt": ("Deuda del Gobierno Central", "% del PIB", "Ministerio de Hacienda"),
     "reserves": ("Reservas brutas del Banco Central", "USD millones", "BCCR"),
     "exports": ("Exportaciones FOB", "USD millones", "BCCR/Aduanas"),

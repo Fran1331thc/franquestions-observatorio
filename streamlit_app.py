@@ -1,10 +1,13 @@
-"""Entrada pública de FranQuestions para servicios de alojamiento de Streamlit."""
+"""Entrada pública estable del Observatorio FranQuestions.
 
-import os
+Streamlit vuelve a ejecutar este archivo en cada interacción. ``run_path``
+garantiza que la implementación completa también se ejecute de nuevo, en vez
+de quedar retenida en la caché de importaciones de Python y producir una
+pantalla vacía después de ciertas recargas.
+"""
 
-os.environ.setdefault("FQ_ENV", "production")
-os.environ.setdefault("FQ_API_URL", "http://127.0.0.1:9")
-os.environ.setdefault("STREAMLIT_SERVER_FILE_WATCHER_TYPE", "none")
-os.environ.setdefault("STREAMLIT_SERVER_RUN_ON_SAVE", "false")
+from pathlib import Path
+from runpy import run_path
 
-from fq_observatorio.dashboard import *  # noqa: F401,F403,E402
+
+run_path(str(Path(__file__).with_name("streamlit_app_stable.py")), run_name="__main__")
