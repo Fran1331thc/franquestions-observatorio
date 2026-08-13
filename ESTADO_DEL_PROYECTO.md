@@ -1,12 +1,20 @@
 # Estado del proyecto FranQuestions
 
+## Corrección de estabilidad del 11 de agosto de 2026
+
+- Se corrigió la entrada pública para que Streamlit reconstruya toda la interfaz en cada interacción y recarga, evitando que el módulo principal quede retenido en la caché de importaciones y produzca una pantalla vacía.
+- La corrección fue comprobada mediante ejecuciones repetidas de la aplicación y la apertura de los 12 indicadores, sin excepciones.
+- Se añadió la prueba de regresión `tests/test_streamlit_rerun.py`, que abre la aplicación, interactúa con el selector y confirma que la interfaz permanece disponible después de la nueva ejecución.
+- La suite completa quedó verificada después de la corrección: 28 de 28 pruebas aprobadas.
+- La corrección está validada en la carpeta canónica local. Su publicación en Streamlit Community Cloud queda pendiente de incorporarla al repositorio conectado a GitHub.
+
 ## Punto de control del 9 de agosto de 2026
 
-**Versión operativa:** 2.12.1  
+**Versión operativa:** 2.12.2
 **Carpeta canónica:** `Version actual/Publicacion/FQ_Public_v2.9.2_limpio`  
 **Estado:** MVP funcional en operación local y demostración pública de solo lectura.
 
-> La carpeta conserva `v2.9.2` en el nombre para no romper los iniciadores locales ni la publicación existente. La versión funcional vigente es 2.12.1.
+> La carpeta conserva `v2.9.2` en el nombre para no romper los iniciadores locales ni la publicación existente. La versión funcional vigente es 2.12.2.
 
 ## Verificaciones realizadas
 
@@ -19,7 +27,7 @@
 - El actualizador local carga mediante la herramienta de pruebas de Streamlit sin excepciones.
 - El código Python del Observatorio, del actualizador y del paquete compila sin errores.
 - Existe creación manual de respaldos, descarga de la copia más reciente y recuperación protegida.
-- La versión declarada por el paquete, la API, el dashboard y la documentación quedó alineada en 2.12.1.
+- La versión declarada por el paquete, la API, el dashboard y la documentación quedó alineada en 2.12.2.
 
 ## Capacidades consolidadas
 

@@ -14,6 +14,12 @@ from .models import Alert, IngestionRun, Observation, Revision, Series
 from .validation import validate_series
 
 logger = logging.getLogger(__name__)
+DATABASE_VALUE_PRECISION = Decimal("0.00000001")
+
+
+def normalize_database_value(value: object) -> Decimal:
+    """Normaliza valores a la precisión NUMERIC(24, 8) usada por PostgreSQL/SQLite."""
+    return Decimal(str(value)).quantize(DATABASE_VALUE_PRECISION)
 
 
 @dataclass
@@ -25,6 +31,71 @@ class ImportReport:
     revised: int
     unchanged: int
     issues: list[dict]
+
+
+@dataclass
+class PreviewComparison:
+    """Resultado de comparar un archivo oficial contra la base vigente."""
+
+    new_rows: list[dict]
+    revised_rows: list[dict]
+    unchanged: int
+    database_latest: date | None
+    file_latest: date | None
+
+    @property
+    def changes(self) -> int:
+        return len(self.new_rows) + len(self.revised_rows)
+
+
+def compare_rows(session: Session, slug: str, rows: list[dict]) -> PreviewComparison:
+    """Clasifica filas sin escribir datos ni crear registros de ingesta."""
+    series = session.scalar(select(Series).where(Series.slug == slug))
+    if not series:
+        raise ValueError(f"Serie desconocida: {slug}. Inicialice primero el catalogo.")
+
+    valid_rows = [row for row in rows if row.get("period") is not None and row.get("value") is not None]
+    periods = [row["period"] for row in valid_rows]
+    existing = {}
+    if periods:
+        observations = session.scalars(
+            select(Observation).where(
+                Observation.series_id == series.id,
+                Observation.period.in_(periods),
+            )
+        ).all()
+        existing = {observation.period: observation.value for observation in observations}
+
+    new_rows: list[dict] = []
+    revised_rows: list[dict] = []
+    unchanged = 0
+    for row in valid_rows:
+        period = row["period"]
+        new_value = normalize_database_value(row["value"])
+        old_value = existing.get(period)
+        if old_value is None:
+            new_rows.append({"period": period, "value": new_value})
+        elif normalize_database_value(old_value) != new_value:
+            revised_rows.append(
+                {"period": period, "current_value": old_value, "file_value": new_value}
+            )
+        else:
+            unchanged += 1
+
+    database_latest = session.scalar(
+        select(Observation.period)
+        .where(Observation.series_id == series.id)
+        .order_by(Observation.period.desc())
+        .limit(1)
+    )
+    file_latest = max(periods) if periods else None
+    return PreviewComparison(
+        new_rows=new_rows,
+        revised_rows=revised_rows,
+        unchanged=unchanged,
+        database_latest=database_latest,
+        file_latest=file_latest,
+    )
 
 
 def read_official_file(
@@ -371,6 +442,21 @@ def import_rows(session: Session, slug: str, rows: list[dict]) -> ImportReport:
     run = IngestionRun(source_id=series.source_id, status="running")
     session.add(run)
     session.flush()
+    return apply_rows(session, series, run, rows)
+
+
+def apply_rows(
+    session: Session,
+    series: Series,
+    run: IngestionRun,
+    rows: list[dict],
+) -> ImportReport:
+    """Aplica filas a una ejecucion ya registrada.
+
+    Esta funcion permite que las ingestas automaticas creen el registro antes
+    de consultar la fuente. Asi, incluso los fallos de red o credenciales
+    quedan documentados sin modificar observaciones validas.
+    """
     issues = validate_series(rows, series.frequency)
     errors = [issue for issue in issues if issue.severity == "error"]
     for issue in issues:
@@ -383,13 +469,17 @@ def import_rows(session: Session, slug: str, rows: list[dict]) -> ImportReport:
             run.error_message = f"{len(errors)} errores de validacion"
         else:
             for row in rows:
+                normalized_row = {
+                    "period": row["period"],
+                    "value": normalize_database_value(row["value"]),
+                }
                 current = session.scalar(select(Observation).where(Observation.series_id == series.id, Observation.period == row["period"]))
                 if current is None:
-                    session.add(Observation(series_id=series.id, **row))
+                    session.add(Observation(series_id=series.id, **normalized_row))
                     inserted += 1
-                elif current.value != row["value"]:
-                    session.add(Revision(observation_id=current.id, old_value=current.value, new_value=row["value"]))
-                    current.value = row["value"]
+                elif normalize_database_value(current.value) != normalized_row["value"]:
+                    session.add(Revision(observation_id=current.id, old_value=current.value, new_value=normalized_row["value"]))
+                    current.value = normalized_row["value"]
                     revised += 1
                 else:
                     unchanged += 1
@@ -400,6 +490,6 @@ def import_rows(session: Session, slug: str, rows: list[dict]) -> ImportReport:
         session.commit()
     except Exception as exc:
         session.rollback()
-        logger.exception("Fallo la importacion manual", extra={"slug": slug})
+        logger.exception("Fallo la importacion manual", extra={"slug": series.slug})
         raise RuntimeError(f"La importacion no pudo completarse: {exc}") from exc
     return ImportReport(run.id, run.status, len(rows), inserted, revised, unchanged, [asdict(issue) for issue in issues])

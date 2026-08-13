@@ -5,6 +5,7 @@ import sqlite3
 from datetime import date, timedelta
 
 import pandas as pd
+import plotly.express as px
 import streamlit as st
 
 from fq_observatorio import __version__
@@ -313,6 +314,58 @@ def latest_statement(slug: str, latest_rows: pd.DataFrame) -> str:
     return f"{name}: {value} {unit} ({period})."
 
 
+def render_public_chart(
+    data: pd.DataFrame,
+    *,
+    x: str,
+    y: str,
+    y_label: str,
+    key: str,
+    color: str | None = None,
+) -> None:
+    """Dibuja un gráfico que no captura el desplazamiento por defecto."""
+    with st.container(key=f"fq_navigation_chart_{key}"):
+        interactive = st.toggle(
+            "Activar zoom y movimiento del gráfico",
+            value=False,
+            key=f"interactive_chart_{key}",
+            help=(
+                "Déjalo desactivado para recorrer la página con comodidad, "
+                "especialmente desde el teléfono."
+            ),
+        )
+        figure = px.line(
+            data,
+            x=x,
+            y=y,
+            color=color,
+            labels={x: "Fecha", y: y_label},
+        )
+        figure.update_traces(mode="lines")
+        figure.update_layout(
+            dragmode="pan" if interactive else False,
+            hovermode="x unified" if interactive else False,
+            margin=dict(l=10, r=10, t=15, b=10),
+        )
+        figure.update_xaxes(fixedrange=not interactive)
+        figure.update_yaxes(fixedrange=not interactive)
+        st.plotly_chart(
+            figure,
+            width="stretch",
+            config={
+                "displayModeBar": interactive,
+                "scrollZoom": False,
+                "staticPlot": not interactive,
+                "responsive": True,
+            },
+        )
+        if not interactive:
+            st.caption(
+                "Modo desplazamiento activo: desliza la página normalmente. "
+                "Activa el control solo cuando quieras explorar el gráfico."
+            )
+
+
 st.set_page_config(
     page_title="FranQuestions | Observatorio",
     page_icon="📊",
@@ -327,6 +380,9 @@ st.markdown(
         h1 {font-size: 1.8rem !important;}
         [data-testid="stHorizontalBlock"] {flex-wrap: wrap;}
         [data-testid="column"] {min-width: 100% !important;}
+    }
+    div[class*="st-key-fq_navigation_chart_"] [data-testid="stPlotlyChart"] {
+        touch-action: pan-y !important;
     }
     </style>
     """,
@@ -748,10 +804,12 @@ with st.expander("Señales relacionadas: contraste entre indicadores"):
             )
             st.write(relationship)
 
-st.line_chart(
-    selected.set_index("period")["value"],
-    x_label="Fecha",
+render_public_chart(
+    selected[["period", "value"]],
+    x="period",
+    y="value",
     y_label=unit,
+    key=f"indicator_{selected_slug}",
 )
 
 with st.container(border=True):
@@ -868,13 +926,13 @@ else:
                 f"{metric_period.strftime('%d/%m/%Y')}"
             )
 
-        st.line_chart(
+        render_public_chart(
             standardized_data,
             x="period",
             y="Posición estandarizada",
             color="Indicador",
-            x_label="Fecha",
             y_label="Desviaciones estándar",
+            key="comparison",
         )
         st.info(
             "**Cómo leerlo:** 0 es el promedio de cada indicador durante el "

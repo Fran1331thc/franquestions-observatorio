@@ -4,6 +4,7 @@ from fastapi import Depends, FastAPI, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from . import __version__
 from .catalog import CATALOG, catalog_as_dicts
 from .config import get_settings
 from .db import Base, engine, get_db
@@ -13,7 +14,7 @@ from .models import IngestionRun, Observation, Series
 
 settings = get_settings()
 configure_logging(settings.log_level)
-app = FastAPI(title="FranQuestions Observatorio API", version="2.9.2")
+app = FastAPI(title="FranQuestions Observatorio API", version=__version__)
 
 
 @app.on_event("startup")
