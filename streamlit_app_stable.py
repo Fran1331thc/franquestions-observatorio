@@ -339,6 +339,7 @@ def render_public_chart(
             x=x,
             y=y,
             color=color,
+            render_mode="svg",
             labels={x: "Fecha", y: y_label},
         )
         figure.update_traces(mode="lines")

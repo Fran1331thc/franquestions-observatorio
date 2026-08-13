@@ -716,6 +716,7 @@ try:
             frame,
             x="period",
             y="value",
+            render_mode="svg",
             markers=len(frame) <= 200,
             labels={"period": "Fecha", "value": item.unit},
         )
