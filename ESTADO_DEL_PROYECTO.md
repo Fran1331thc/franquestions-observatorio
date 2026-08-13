@@ -1,5 +1,10 @@
 # Estado del proyecto FranQuestions
 
+## Compatibilidad móvil del 13 de agosto de 2026
+
+- Las gráficas de líneas, incluidas las comparaciones de señales, ahora se renderizan como SVG y no requieren WebGL.
+- La versión funcional vigente quedó alineada en 2.12.3.
+
 ## Corrección de estabilidad del 11 de agosto de 2026
 
 - Se corrigió la entrada pública para que Streamlit reconstruya toda la interfaz en cada interacción y recarga, evitando que el módulo principal quede retenido en la caché de importaciones y produzca una pantalla vacía.
@@ -10,11 +15,11 @@
 
 ## Punto de control del 9 de agosto de 2026
 
-**Versión operativa:** 2.12.2
+**Versión operativa:** 2.12.3
 **Carpeta canónica:** `Version actual/Publicacion/FQ_Public_v2.9.2_limpio`  
 **Estado:** MVP funcional en operación local y demostración pública de solo lectura.
 
-> La carpeta conserva `v2.9.2` en el nombre para no romper los iniciadores locales ni la publicación existente. La versión funcional vigente es 2.12.2.
+> La carpeta conserva `v2.9.2` en el nombre para no romper los iniciadores locales ni la publicación existente. La versión funcional vigente es 2.12.3.
 
 ## Verificaciones realizadas
 
@@ -27,7 +32,7 @@
 - El actualizador local carga mediante la herramienta de pruebas de Streamlit sin excepciones.
 - El código Python del Observatorio, del actualizador y del paquete compila sin errores.
 - Existe creación manual de respaldos, descarga de la copia más reciente y recuperación protegida.
-- La versión declarada por el paquete, la API, el dashboard y la documentación quedó alineada en 2.12.2.
+- La versión declarada por el paquete, la API, el dashboard y la documentación quedó alineada en 2.12.3.
 
 ## Capacidades consolidadas
 
