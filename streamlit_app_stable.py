@@ -970,6 +970,39 @@ else:
             "frecuencias, revisiones y rezagos de publicación pueden ser distintos."
         )
 
+        with st.expander("Comprueba tu lectura del comparador"):
+            st.write(
+                "Si un indicador aparece en **+1,2**, ¿qué podemos afirmar "
+                "únicamente con la información del comparador?"
+            )
+            z_comprehension_answer = st.radio(
+                "Elige una interpretación",
+                (
+                    "Aún no he elegido una respuesta",
+                    "El indicador está 1,2 % por encima de su valor anterior.",
+                    "El indicador está 1,2 desviaciones estándar por encima de su promedio en el periodo elegido.",
+                    "El cambio es estructural y tendrá efectos importantes.",
+                    "El primer indicador causó el movimiento del segundo.",
+                ),
+                key="z_comprehension_answer",
+                label_visibility="collapsed",
+            )
+            if z_comprehension_answer == (
+                "El indicador está 1,2 desviaciones estándar por encima de su "
+                "promedio en el periodo elegido."
+            ):
+                st.success(
+                    "Correcto. La puntuación describe una posición estadística "
+                    "dentro del periodo seleccionado. No demuestra importancia "
+                    "económica, causalidad ni un cambio estructural."
+                )
+            elif z_comprehension_answer != "Aún no he elegido una respuesta":
+                st.error(
+                    "Esa conclusión no se desprende del Z-Score. +1,2 indica "
+                    "distancia respecto del promedio, medida en desviaciones "
+                    "estándar; todavía hace falta contexto para interpretarla."
+                )
+
         comparison_export = standardized_data.rename(
             columns={
                 "period": "Fecha",

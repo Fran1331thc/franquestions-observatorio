@@ -2,6 +2,11 @@
 
 Repositorio funcional del observatorio macroeconomico de Costa Rica. Incluye 12 indicadores, PostgreSQL, conectores piloto, controles de calidad, API interna y dashboard publico.
 
+La preparación de una futura prueba cerrada se documenta en
+[`BETA_ACADEMICA.md`](BETA_ACADEMICA.md). La cohorte propuesta es pequeña y
+diversa; no implica una publicación abierta ni cambia el alcance descriptivo
+del producto.
+
 Desde la versión 2.7.1, la vigencia de los 12 indicadores se calcula primero contra su próxima fecha oficial de publicación. Las ventanas generales por frecuencia quedan como respaldo cuando no existe un calendario oficial.
 
 La versión 2.8.0 incorpora una presentación adaptable para teléfonos: título protegido de la barra superior, tarjetas apiladas, controles de ancho completo, tablas desplazables y gráficos limitados al ancho de la pantalla.

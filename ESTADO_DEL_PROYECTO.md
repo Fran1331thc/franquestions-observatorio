@@ -1,5 +1,13 @@
 # Estado del proyecto FranQuestions
 
+## Candidato posterior a 2.13.1
+
+- Prueba de comprensión integrada en el comparador estandarizado.
+- Plan de beta académica cerrada para 8–12 participantes.
+- Invitación y cuestionario neutrales, sin prometer automatización total.
+- No se incorporan umbrales universales de importancia basados en Z-Scores.
+- Estos cambios permanecen sin publicar hasta una nueva aceptación.
+
 ## Actualizador local 2.13.1 — 23 de agosto de 2026
 
 - La comparación con la base vigente aparece antes de la confirmación en los 12 indicadores.
