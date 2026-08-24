@@ -35,6 +35,12 @@ FEATURE_LABELS = {
     "contract_research": "Investigación contratada",
     "policy_briefs": "Policy briefs institucionales",
     "sponsored_observatories": "Observatorios patrocinados",
+    "reasoning_foundations_lab": "Laboratorio: definir y verificar afirmaciones",
+    "causal_reasoning_lab": "Laboratorio: prueba de mecanismos causales",
+    "system_reasoning_lab": "Laboratorio: implementación y restricciones",
+    "outcome_reasoning_lab": "Laboratorio: resultados y atribución",
+    "conclusion_audit_lab": "Laboratorio: auditoría de conclusiones",
+    "conclusion_update_lab": "Laboratorio: actualización de conclusiones",
 }
 
 PUBLIC_FEATURES = {

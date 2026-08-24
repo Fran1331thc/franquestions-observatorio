@@ -6,6 +6,8 @@
 - Plan de beta académica cerrada para 8–12 participantes.
 - Invitación y cuestionario neutrales, sin prometer automatización total.
 - No se incorporan umbrales universales de importancia basados en Z-Scores.
+- FQ Reasoning Toolkit 0.1 registrado como 20 operaciones dentro de seis flujos provisionales.
+- Las seis capacidades comerciales del Toolkit permanecen restringidas al modo propietario.
 - Estos cambios permanecen sin publicar hasta una nueva aceptación.
 
 ## Actualizador local 2.13.1 — 23 de agosto de 2026
