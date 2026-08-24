@@ -104,7 +104,11 @@ def persist_preferences(values: dict) -> dict:
     return save_preferences(settings.preferences_path, values, set(PUBLIC_SLUGS))
 
 st.set_page_config(page_title="FranQuestions | Observatorio", page_icon="📊", layout="wide")
-st.markdown('<h1 translate="no" class="notranslate">FranQuestions — Observatorio Económico</h1>', unsafe_allow_html=True)
+st.markdown(
+    '<h1><span translate="no" class="notranslate">FranQuestions</span> — '
+    'Observatorio Económico</h1>',
+    unsafe_allow_html=True,
+)
 st.caption(
     f"Datos oficiales de Costa Rica con fuente, fecha y contexto. "
     f"Versión preliminar {__version__}"
@@ -223,9 +227,13 @@ def dataframe_to_excel(frame: pd.DataFrame) -> bytes:
     return output.getvalue()
 
 
-guide_title = "Empieza aquí · recorrido de 1 minuto" if not preferences["onboarding_complete"] else "Cómo usar FranQuestions"
+guide_title = "Empieza aquí · recorrido de 1 minuto" if not preferences["onboarding_complete"] else "Cómo usar el Observatorio"
 with st.expander(guide_title, expanded=not preferences["onboarding_complete"]):
-    st.write("FranQuestions convierte datos oficiales en una lectura clara, sin ocultar fuentes ni incertidumbres.")
+    st.markdown(
+        '<span translate="no" class="notranslate">FranQuestions</span> convierte '
+        "datos oficiales en una lectura clara, sin ocultar fuentes ni incertidumbres.",
+        unsafe_allow_html=True,
+    )
     guide_columns = st.columns(3)
     with guide_columns[0].container(border=True):
         st.markdown("### 1. Elige")
@@ -235,7 +243,7 @@ with st.expander(guide_title, expanded=not preferences["onboarding_complete"]):
         st.write("Revisa el último dato, su fecha, tendencia y advertencias antes de interpretarlo.")
     with guide_columns[2].container(border=True):
         st.markdown("### 3. Verifica")
-        st.write("Abre la fuente oficial y usa las preguntas FranQuestions antes de sacar conclusiones.")
+        st.write("Abre la fuente oficial y usa las preguntas del método antes de sacar conclusiones.")
     st.info("Sugerencia: empieza con inflación, empleo y tipo de cambio. Luego añade los indicadores que afecten tus decisiones.")
     if not preferences["onboarding_complete"] and st.button("Entendido · empezar a explorar", type="primary"):
         preferences = persist_preferences(
@@ -634,7 +642,7 @@ try:
         st.caption("Lectura descriptiva automática; no constituye una predicción ni una recomendación.")
         fq_reading = build_fq_reading(selected, item.name, analysis, item.caveat)
         with st.expander(
-            "Lectura FranQuestions: qué sabemos y qué falta verificar",
+            "Lectura del método: qué sabemos y qué falta verificar",
             expanded=preferences["detail_level"] == "Completo",
         ):
             st.markdown(f"**Hecho comprobado**  \n{fq_reading['fact']}")
@@ -645,7 +653,17 @@ try:
             st.markdown("**Preguntas de verificación**")
             for question in fq_reading["questions"]:
                 st.markdown(f"- {question}")
+            st.markdown("**Estado del conocimiento**")
+            st.write(f"Hecho: **{fq_reading['fact_state']}**.")
+            st.write(f"Interpretación: **{fq_reading['knowledge_state']}**.")
+            st.markdown(f"**{fq_reading['mandatory_question']}**")
+            st.write(fq_reading["change_mind_evidence"])
+            st.markdown("**Incertidumbre restante**")
+            st.write(fq_reading["remaining_uncertainty"])
+            st.markdown("**Condición de revisión**")
+            st.write(fq_reading["revision_condition"])
             st.warning(fq_reading["caveat"])
+            st.info(f"Principio FranQuestions: {fq_reading['principle']}")
         with st.expander("Señales relacionadas: contraste entre indicadores", expanded=False):
             st.caption("Estas relaciones orientan la investigación. Que dos señales se muevan juntas no demuestra que una cause la otra.")
             related_specs = related_indicator_specs(selected)

@@ -9,6 +9,7 @@ import plotly.express as px
 import streamlit as st
 
 from fq_observatorio import __version__
+from fq_observatorio.intelligence import build_conclusion_protocol
 from fq_observatorio.publication_calendar import (
     build_calendar_events,
     calendar_to_ics,
@@ -390,7 +391,11 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-st.title("FranQuestions — Observatorio Económico")
+st.markdown(
+    '<h1><span translate="no" class="notranslate">FranQuestions</span> — '
+    'Observatorio Económico</h1>',
+    unsafe_allow_html=True,
+)
 st.caption(
     "Datos oficiales de Costa Rica con fuente, fecha y contexto. "
     f"Publicación estable {__version__}."
@@ -422,16 +427,18 @@ if st.session_state.show_quick_start:
             st.write(
                 "Compara periodos, revisa la fuente y descarga datos o el panorama PDF."
             )
-        st.info(
-            "FranQuestions describe y organiza evidencia. No presenta sus lecturas "
-            "como predicciones, recomendaciones ni pruebas de causalidad."
+        st.markdown(
+            '<span translate="no" class="notranslate">FranQuestions</span> '
+            "describe y organiza evidencia. No presenta sus lecturas como "
+            "predicciones, recomendaciones ni pruebas de causalidad.",
+            unsafe_allow_html=True,
         )
         if st.button("Entendido, ocultar guía", key="dismiss_quick_start"):
             st.session_state.show_quick_start = False
             st.rerun()
 else:
     if st.button(
-        "¿Cómo usar FranQuestions?",
+        "¿Cómo usar el Observatorio?",
         key="open_quick_start",
         help="Vuelve a mostrar la guía inicial.",
     ):
@@ -746,7 +753,8 @@ metric_columns[2].metric("Fuente", source)
 metric_columns[2].caption("Dato oficial")
 
 reading = FQ_READINGS[selected_slug]
-with st.expander("Lectura FranQuestions: qué sabemos y qué falta verificar"):
+conclusion_protocol = build_conclusion_protocol(selected_slug)
+with st.expander("Lectura del método: qué sabemos y qué falta verificar"):
     st.markdown("**Hecho comprobado**")
     fact = (
         f"El último dato oficial de {name} es "
@@ -771,10 +779,26 @@ with st.expander("Lectura FranQuestions: qué sabemos y qué falta verificar"):
     for question in VERIFICATION_QUESTIONS:
         st.markdown(f"- {question}")
 
+    st.markdown("**Estado del conocimiento**")
+    st.write(f"Hecho: **{conclusion_protocol['fact_state']}**.")
+    st.write(
+        f"Interpretación: **{conclusion_protocol['knowledge_state']}**."
+    )
+
+    st.markdown(f"**{conclusion_protocol['mandatory_question']}**")
+    st.write(conclusion_protocol["change_mind_evidence"])
+
+    st.markdown("**Incertidumbre restante**")
+    st.write(conclusion_protocol["remaining_uncertainty"])
+
+    st.markdown("**Condición de revisión**")
+    st.write(conclusion_protocol["revision_condition"])
+
     st.warning(
         "Esta lectura es descriptiva: no demuestra causalidad, no es una "
         "predicción y puede cambiar con nuevas observaciones."
     )
+    st.info(f"Principio FranQuestions: {conclusion_protocol['principle']}")
 
 with st.expander("Señales relacionadas: contraste entre indicadores"):
     st.caption(

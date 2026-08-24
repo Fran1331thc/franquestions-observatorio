@@ -22,6 +22,31 @@ def normalize_database_value(value: object) -> Decimal:
     return Decimal(str(value)).quantize(DATABASE_VALUE_PRECISION)
 
 
+def normalize_period(value: object) -> date:
+    """Convierte representaciones equivalentes de una fecha al dia de la base."""
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    parsed = pd.to_datetime(value, errors="coerce")
+    if pd.isna(parsed):
+        raise ValueError(f"Periodo no valido: {value!r}")
+    return parsed.date()
+
+
+def normalize_import_rows(rows: list[dict]) -> list[dict]:
+    """Normaliza filas completas antes de validarlas, compararlas o escribirlas."""
+    return [
+        {
+            "period": normalize_period(row["period"]),
+            "value": normalize_database_value(row["value"]),
+        }
+        if row.get("period") is not None and row.get("value") is not None
+        else row
+        for row in rows
+    ]
+
+
 @dataclass
 class ImportReport:
     run_id: int
@@ -54,7 +79,11 @@ def compare_rows(session: Session, slug: str, rows: list[dict]) -> PreviewCompar
     if not series:
         raise ValueError(f"Serie desconocida: {slug}. Inicialice primero el catalogo.")
 
-    valid_rows = [row for row in rows if row.get("period") is not None and row.get("value") is not None]
+    valid_rows = [
+        row
+        for row in normalize_import_rows(rows)
+        if row.get("period") is not None and row.get("value") is not None
+    ]
     periods = [row["period"] for row in valid_rows]
     existing = {}
     if periods:
@@ -71,7 +100,7 @@ def compare_rows(session: Session, slug: str, rows: list[dict]) -> PreviewCompar
     unchanged = 0
     for row in valid_rows:
         period = row["period"]
-        new_value = normalize_database_value(row["value"])
+        new_value = row["value"]
         old_value = existing.get(period)
         if old_value is None:
             new_rows.append({"period": period, "value": new_value})
@@ -457,7 +486,8 @@ def apply_rows(
     de consultar la fuente. Asi, incluso los fallos de red o credenciales
     quedan documentados sin modificar observaciones validas.
     """
-    issues = validate_series(rows, series.frequency)
+    normalized_rows = normalize_import_rows(rows)
+    issues = validate_series(normalized_rows, series.frequency)
     errors = [issue for issue in issues if issue.severity == "error"]
     for issue in issues:
         session.add(Alert(series_id=series.id, alert_type=issue.kind, severity=issue.severity, message=issue.message, period=issue.period))
@@ -468,12 +498,13 @@ def apply_rows(
             run.rows_received = len(rows)
             run.error_message = f"{len(errors)} errores de validacion"
         else:
-            for row in rows:
-                normalized_row = {
-                    "period": row["period"],
-                    "value": normalize_database_value(row["value"]),
-                }
-                current = session.scalar(select(Observation).where(Observation.series_id == series.id, Observation.period == row["period"]))
+            for normalized_row in normalized_rows:
+                current = session.scalar(
+                    select(Observation).where(
+                        Observation.series_id == series.id,
+                        Observation.period == normalized_row["period"],
+                    )
+                )
                 if current is None:
                     session.add(Observation(series_id=series.id, **normalized_row))
                     inserted += 1

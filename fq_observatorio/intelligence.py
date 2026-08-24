@@ -143,6 +143,27 @@ def explain_analysis(name: str, analysis: dict) -> str:
     )
 
 
+def build_conclusion_protocol(slug: str, caveat: str = "") -> dict:
+    """Explicita el estado, la incertidumbre y la condición de revisión de una lectura."""
+    return {
+        "knowledge_state": "Creemos provisionalmente",
+        "fact_state": "Sabemos",
+        "remaining_uncertainty": caveat
+        or "La señal está comprobada, pero estos datos no permiten establecer por sí solos sus causas.",
+        "revision_condition": (
+            "Revisar cuando la fuente oficial publique un dato nuevo, una revisión de la serie "
+            "o un cambio metodológico relevante."
+        ),
+        "change_mind_evidence": (
+            "Datos oficiales nuevos, revisiones de la serie o evidencia contradictoria sólida "
+            "que deje de respaldar la interpretación actual."
+        ),
+        "mandatory_question": "¿Qué evidencia nos haría cambiar de parecer?",
+        "principle": "Una conclusión no merece protección. El método sí.",
+        "indicator": slug,
+    }
+
+
 def build_fq_reading(slug: str, name: str, analysis: dict, caveat: str = "") -> dict:
     """Separa hechos, significado descriptivo e hipótesis que aún requieren evidencia."""
     direction = analysis["trend"]
@@ -154,6 +175,7 @@ def build_fq_reading(slug: str, name: str, analysis: dict, caveat: str = "") -> 
         slug,
         ("cambios de demanda", "factores de oferta", "efectos estacionales o metodológicos"),
     )
+    protocol = build_conclusion_protocol(slug, caveat)
     return {
         "fact": explain_analysis(name, analysis),
         "meaning": meaning,
@@ -164,6 +186,7 @@ def build_fq_reading(slug: str, name: str, analysis: dict, caveat: str = "") -> 
             "¿Se mantiene la señal al comparar más de un período?",
         ),
         "caveat": caveat or "La descripción no demuestra causalidad y puede cambiar con nuevas observaciones.",
+        **protocol,
     }
 
 
@@ -219,9 +242,28 @@ Enlace oficial: {source_url}
 
 {questions}
 
-6. ADVERTENCIA METODOLÓGICA
+6. ESTADO DEL CONOCIMIENTO
+
+Hecho: {reading['fact_state']}.
+Interpretación: {reading['knowledge_state']}.
+
+7. ¿QUÉ EVIDENCIA NOS HARÍA CAMBIAR DE PARECER?
+
+{reading['change_mind_evidence']}
+
+8. INCERTIDUMBRE RESTANTE
+
+{reading['remaining_uncertainty']}
+
+9. CONDICIÓN DE REVISIÓN
+
+{reading['revision_condition']}
+
+10. ADVERTENCIA METODOLÓGICA
 
 {reading['caveat']}
+
+Principio FranQuestions: {reading['principle']}
 
 Esta ficha es una lectura descriptiva automática. No constituye una predicción, una recomendación ni una demostración de causalidad.
 """

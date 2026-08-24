@@ -235,7 +235,11 @@ def recovery_dialog() -> None:
 
 
 st.set_page_config(page_title="Actualizar FranQuestions", page_icon="🔄", layout="wide")
-st.title("Actualizar indicadores de FranQuestions")
+st.markdown(
+    '<h1>Actualizar indicadores de '
+    '<span translate="no" class="notranslate">FranQuestions</span></h1>',
+    unsafe_allow_html=True,
+)
 st.markdown("[← Volver al Observatorio](http://127.0.0.1:8501)")
 st.caption("Herramienta local con vista previa, validación, respaldo y registro de revisiones.")
 st.warning(

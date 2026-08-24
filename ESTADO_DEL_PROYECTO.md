@@ -1,9 +1,18 @@
 # Estado del proyecto FranQuestions
 
+## Actualizador local 2.13.1 — 23 de agosto de 2026
+
+- La comparación con la base vigente aparece antes de la confirmación en los 12 indicadores.
+- La validación, la vista previa y la escritura comparten la misma normalización de fechas y decimales.
+- Los archivos sin novedades muestran una explicación explícita y no habilitan la incorporación.
+- El archivo oficial completo del tipo de cambio se verificó sin falsos positivos.
+
 ## Compatibilidad móvil del 13 de agosto de 2026
 
 - Las gráficas de líneas, incluidas las comparaciones de señales, ahora se renderizan como SVG y no requieren WebGL.
-- La versión funcional vigente quedó alineada en 2.12.3.
+- Se añadió una prueba de regresión que impide volver a introducir gráficas Plotly dependientes de WebGL.
+- La versión funcional vigente quedó alineada en 2.13.1.
+- El Protocolo de actualización de conclusiones FQ-MET-AC-001 quedó aprobado e integrado en las lecturas y fichas de investigación.
 
 ## Corrección de estabilidad del 11 de agosto de 2026
 
@@ -15,11 +24,11 @@
 
 ## Punto de control del 9 de agosto de 2026
 
-**Versión operativa:** 2.12.3
+**Versión operativa:** 2.13.1
 **Carpeta canónica:** `Version actual/Publicacion/FQ_Public_v2.9.2_limpio`  
 **Estado:** MVP funcional en operación local y demostración pública de solo lectura.
 
-> La carpeta conserva `v2.9.2` en el nombre para no romper los iniciadores locales ni la publicación existente. La versión funcional vigente es 2.12.3.
+> La carpeta conserva `v2.9.2` en el nombre para no romper los iniciadores locales ni la publicación existente. La versión funcional vigente es 2.13.1.
 
 ## Verificaciones realizadas
 
@@ -32,7 +41,7 @@
 - El actualizador local carga mediante la herramienta de pruebas de Streamlit sin excepciones.
 - El código Python del Observatorio, del actualizador y del paquete compila sin errores.
 - Existe creación manual de respaldos, descarga de la copia más reciente y recuperación protegida.
-- La versión declarada por el paquete, la API, el dashboard y la documentación quedó alineada en 2.12.3.
+- La versión declarada por el paquete, la API, el dashboard y la documentación quedó alineada en 2.13.1.
 
 ## Capacidades consolidadas
 
