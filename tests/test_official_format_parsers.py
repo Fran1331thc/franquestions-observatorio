@@ -59,6 +59,15 @@ class OfficialFormatParserTests(unittest.TestCase):
         }), "Sheet1", 4)
         self._assert_single(parse_upload("inflation", path), date(2026, 7, 31), "-0.52")
 
+    def test_inflation_june_2026_base_format(self) -> None:
+        path = self._xlsx("inflation_2026.xlsx", pd.DataFrame({
+            "Fecha": [date(2026, 7, 31)],
+            "Índice de Precios al Consumidor (IPC), (Junio 2026 = 100) variación interanual": [-0.27704758],
+        }), "Sheet1", 4)
+        self._assert_single(
+            parse_upload("inflation", path), date(2026, 7, 31), "-0.27704758"
+        )
+
     def test_imae_format(self) -> None:
         path = self._xlsx("imae.xlsx", pd.DataFrame({
             "Fecha": [date(2026, 6, 30)], "IMAE, variación interanual (%)": [3.4]
@@ -152,6 +161,20 @@ class OfficialFormatParserTests(unittest.TestCase):
         self.assertEqual(rows, [
             {"period": date(2025, 12, 31), "value": Decimal("1500")},
             {"period": date(2026, 3, 31), "value": Decimal("1700")},
+        ])
+
+    def test_fdi_accepts_accented_current_bccr_label(self) -> None:
+        path = self.root / "fdi_accented.xls"
+        path.write_text(
+            "<table><tr><td>Concepto</td><td>Trimestre 1/2026</td><td>Trimestre 2/2026</td></tr>"
+            "<tr><td>Total Inversión directa en la economía declarante</td>"
+            "<td>1700</td><td>1800</td></tr></table>",
+            encoding="windows-1252",
+        )
+        rows = parse_upload("fdi", path)
+        self.assertEqual(rows, [
+            {"period": date(2026, 3, 31), "value": Decimal("1700")},
+            {"period": date(2026, 6, 30), "value": Decimal("1800")},
         ])
 
 

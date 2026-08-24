@@ -83,7 +83,7 @@ class PreviewComparisonTests(unittest.TestCase):
         self.assertEqual(report.revised, 0)
         self.assertEqual(report.unchanged, 2)
 
-    def test_difference_at_database_precision_is_a_real_revision(self):
+    def test_difference_at_database_precision_is_rounding_noise(self):
         rows = [
             {"period": date(2026, 2, 28), "value": Decimal("6.660000006")},
             {"period": date(2026, 3, 31), "value": "7.0"},
@@ -91,10 +91,8 @@ class PreviewComparisonTests(unittest.TestCase):
         with self.Session() as session:
             result = compare_rows(session, "unemployment", rows)
 
-        self.assertEqual(len(result.revised_rows), 1)
-        self.assertEqual(result.revised_rows[0]["current_value"], Decimal("6.66000000"))
-        self.assertEqual(result.revised_rows[0]["file_value"], Decimal("6.66000001"))
-        self.assertEqual(result.unchanged, 1)
+        self.assertEqual(len(result.revised_rows), 0)
+        self.assertEqual(result.unchanged, 2)
 
     def test_applies_real_new_value_and_revision_with_history(self):
         rows = [

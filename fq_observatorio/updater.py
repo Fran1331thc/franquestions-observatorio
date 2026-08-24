@@ -111,7 +111,21 @@ def parse_upload(slug: str, main_path: Path, second_path: Path | None = None) ->
     if slug == "policy-rate":
         return read_official_file(main_path, "Fecha", "Tasa política monetaria", 0, 5)
     if slug == "inflation":
-        return read_official_file(main_path, "Fecha", "IPC, variación interanual (%)", 0, 5)
+        try:
+            return read_official_file(
+                main_path,
+                "Fecha",
+                "Índice de Precios al Consumidor (IPC), (Junio 2026 = 100) variación interanual",
+                0,
+                5,
+            )
+        except ValueError as current_format_error:
+            try:
+                return read_official_file(
+                    main_path, "Fecha", "IPC, variación interanual (%)", 0, 5
+                )
+            except ValueError:
+                raise current_format_error
     if slug == "imae":
         return read_official_file(main_path, "Fecha", "IMAE, variación interanual (%)", 0, 5)
     if slug == "reserves":

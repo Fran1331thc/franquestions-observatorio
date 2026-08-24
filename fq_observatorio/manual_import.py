@@ -1,5 +1,6 @@
 import logging
 import re
+import unicodedata
 from dataclasses import asdict, dataclass
 from calendar import monthrange
 from datetime import date, datetime, timezone
@@ -15,11 +16,19 @@ from .validation import validate_series
 
 logger = logging.getLogger(__name__)
 DATABASE_VALUE_PRECISION = Decimal("0.00000001")
+DATABASE_VALUE_EQUIVALENCE_TOLERANCE = DATABASE_VALUE_PRECISION
 
 
 def normalize_database_value(value: object) -> Decimal:
     """Normaliza valores a la precisión NUMERIC(24, 8) usada por PostgreSQL/SQLite."""
     return Decimal(str(value)).quantize(DATABASE_VALUE_PRECISION)
+
+
+def database_values_equivalent(left: object, right: object) -> bool:
+    """Ignora el ruido de redondeo de una unidad en el ultimo decimal almacenado."""
+    return abs(normalize_database_value(left) - normalize_database_value(right)) <= (
+        DATABASE_VALUE_EQUIVALENCE_TOLERANCE
+    )
 
 
 def normalize_period(value: object) -> date:
@@ -104,7 +113,7 @@ def compare_rows(session: Session, slug: str, rows: list[dict]) -> PreviewCompar
         old_value = existing.get(period)
         if old_value is None:
             new_rows.append({"period": period, "value": new_value})
-        elif normalize_database_value(old_value) != new_value:
+        elif not database_values_equivalent(old_value, new_value):
             revised_rows.append(
                 {"period": period, "current_value": old_value, "file_value": new_value}
             )
@@ -338,9 +347,17 @@ def read_bccr_html_quarterly_file(path: str | Path, row_label: str) -> list[dict
     if header_row is None:
         raise ValueError("No se encontro el encabezado trimestral del BCCR")
     target_row = None
-    normalized_label = " ".join(row_label.split()).casefold()
+    def normalize_label(value: object) -> str:
+        text = " ".join(str(value).split()).casefold()
+        return "".join(
+            character
+            for character in unicodedata.normalize("NFKD", text)
+            if not unicodedata.combining(character)
+        )
+
+    normalized_label = normalize_label(row_label)
     for row_index in range(header_row + 1, len(frame)):
-        candidate = " ".join(str(frame.iloc[row_index, 0]).split()).casefold()
+        candidate = normalize_label(frame.iloc[row_index, 0])
         if candidate == normalized_label:
             target_row = row_index
             break
@@ -508,7 +525,7 @@ def apply_rows(
                 if current is None:
                     session.add(Observation(series_id=series.id, **normalized_row))
                     inserted += 1
-                elif normalize_database_value(current.value) != normalized_row["value"]:
+                elif not database_values_equivalent(current.value, normalized_row["value"]):
                     session.add(Revision(observation_id=current.id, old_value=current.value, new_value=normalized_row["value"]))
                     current.value = normalized_row["value"]
                     revised += 1

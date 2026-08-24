@@ -111,7 +111,7 @@ class UpdaterSafetyTests(unittest.TestCase):
         self.assertEqual(report.unchanged, 2)
         self.assertEqual(self._observation_count(), 2)
 
-    def test_difference_beyond_database_precision_is_a_real_revision(self) -> None:
+    def test_difference_at_database_precision_is_rounding_noise(self) -> None:
         rows = [
             {"period": date(2026, 1, 31), "value": Decimal("10.000000006")},
             {"period": date(2026, 2, 28), "value": "11.0"},
@@ -120,10 +120,8 @@ class UpdaterSafetyTests(unittest.TestCase):
         with Session(self.engine) as session:
             comparison = compare_rows(session, "test-monthly-series", rows)
 
-        self.assertEqual(len(comparison.revised_rows), 1)
-        self.assertEqual(comparison.revised_rows[0]["current_value"], Decimal("10.00000000"))
-        self.assertEqual(comparison.revised_rows[0]["file_value"], Decimal("10.00000001"))
-        self.assertEqual(comparison.unchanged, 1)
+        self.assertEqual(len(comparison.revised_rows), 0)
+        self.assertEqual(comparison.unchanged, 2)
 
     def test_new_observation_inserts_only_the_new_period(self) -> None:
         rows = self._unchanged_rows() + [
