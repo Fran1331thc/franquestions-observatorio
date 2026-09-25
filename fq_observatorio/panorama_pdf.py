@@ -4,13 +4,17 @@ from __future__ import annotations
 
 from datetime import date
 from io import BytesIO
+from pathlib import Path
 from typing import Iterable
 
+import reportlab
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import (
     KeepTogether,
     PageBreak,
@@ -29,6 +33,25 @@ PALE_GRAY = colors.HexColor("#F3F5F7")
 GREEN = colors.HexColor("#237A57")
 AMBER = colors.HexColor("#A66A00")
 RED = colors.HexColor("#A33A45")
+FONT_REGULAR = "FQSans"
+FONT_BOLD = "FQSans-Bold"
+
+
+def _register_unicode_fonts() -> None:
+    """Registra fuentes incrustables con mapa Unicode para extracción fiable."""
+    registered = set(pdfmetrics.getRegisteredFontNames())
+    if {FONT_REGULAR, FONT_BOLD}.issubset(registered):
+        return
+    font_dir = Path(reportlab.__file__).resolve().parent / "fonts"
+    pdfmetrics.registerFont(TTFont(FONT_REGULAR, str(font_dir / "Vera.ttf")))
+    pdfmetrics.registerFont(TTFont(FONT_BOLD, str(font_dir / "VeraBd.ttf")))
+    pdfmetrics.registerFontFamily(
+        FONT_REGULAR,
+        normal=FONT_REGULAR,
+        bold=FONT_BOLD,
+        italic=FONT_REGULAR,
+        boldItalic=FONT_BOLD,
+    )
 
 
 def _status_color(status: str) -> colors.Color:
@@ -44,7 +67,7 @@ def _page_footer(canvas, document) -> None:
     canvas.saveState()
     canvas.setStrokeColor(colors.HexColor("#D7DDE3"))
     canvas.line(18 * mm, 14 * mm, 192 * mm, 14 * mm)
-    canvas.setFont("Helvetica", 8)
+    canvas.setFont(FONT_REGULAR, 8)
     canvas.setFillColor(colors.HexColor("#5E6875"))
     canvas.drawString(18 * mm, 9 * mm, "FranQuestions - datos oficiales con fuente y contexto")
     canvas.drawRightString(192 * mm, 9 * mm, f"Página {document.page}")
@@ -59,6 +82,7 @@ def build_panorama_pdf(
     """Devuelve un PDF en memoria con un panorama factual de los indicadores."""
     records = list(records)
     attention_names = list(attention_names)
+    _register_unicode_fonts()
     output = BytesIO()
     document = SimpleDocTemplate(
         output,
@@ -77,7 +101,7 @@ def build_panorama_pdf(
         ParagraphStyle(
             name="FQTitle",
             parent=styles["Title"],
-            fontName="Helvetica-Bold",
+            fontName=FONT_BOLD,
             fontSize=24,
             leading=29,
             textColor=INK,
@@ -89,6 +113,7 @@ def build_panorama_pdf(
         ParagraphStyle(
             name="FQSubtitle",
             parent=styles["Normal"],
+            fontName=FONT_REGULAR,
             fontSize=11,
             leading=16,
             textColor=colors.HexColor("#526071"),
@@ -100,7 +125,7 @@ def build_panorama_pdf(
         ParagraphStyle(
             name="FQHeading",
             parent=styles["Heading2"],
-            fontName="Helvetica-Bold",
+            fontName=FONT_BOLD,
             fontSize=15,
             leading=19,
             textColor=INK,
@@ -112,6 +137,7 @@ def build_panorama_pdf(
         ParagraphStyle(
             name="FQBody",
             parent=styles["BodyText"],
+            fontName=FONT_REGULAR,
             fontSize=9.5,
             leading=14,
             textColor=INK,
@@ -122,6 +148,7 @@ def build_panorama_pdf(
         ParagraphStyle(
             name="FQSmall",
             parent=styles["BodyText"],
+            fontName=FONT_REGULAR,
             fontSize=8,
             leading=11,
             textColor=colors.HexColor("#526071"),
@@ -147,8 +174,8 @@ def build_panorama_pdf(
                 [
                     ("BACKGROUND", (0, 0), (0, -1), PALE_BLUE),
                     ("TEXTCOLOR", (0, 0), (0, -1), BLUE),
-                    ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
-                    ("FONTNAME", (1, 0), (1, -1), "Helvetica"),
+                    ("FONTNAME", (0, 0), (0, -1), FONT_BOLD),
+                    ("FONTNAME", (1, 0), (1, -1), FONT_REGULAR),
                     ("FONTSIZE", (0, 0), (-1, -1), 10),
                     ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#C9D5DB")),
                     ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
@@ -212,7 +239,7 @@ def build_panorama_pdf(
                     [
                         ("BACKGROUND", (0, 0), (-1, -1), INK),
                         ("TEXTCOLOR", (0, 0), (-1, -1), colors.white),
-                        ("FONTNAME", (0, 0), (-1, -1), "Helvetica-Bold"),
+                        ("FONTNAME", (0, 0), (-1, -1), FONT_BOLD),
                         ("FONTSIZE", (0, 0), (-1, -1), 11),
                         ("LEFTPADDING", (0, 0), (-1, -1), 8),
                         ("TOPPADDING", (0, 0), (-1, -1), 7),

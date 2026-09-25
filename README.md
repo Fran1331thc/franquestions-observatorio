@@ -1,4 +1,4 @@
-# FranQuestions — Observatorio Económico v2.13.1
+# FranQuestions — Observatorio Económico v2.13.4
 
 Repositorio funcional del observatorio macroeconomico de Costa Rica. Incluye 12 indicadores, PostgreSQL, conectores piloto, controles de calidad, API interna y dashboard publico.
 
@@ -15,7 +15,7 @@ La versión 2.9.1 mejora el calendario económico y sus descargas: genera evento
 
 La versión 2.9.2 extiende las descargas de Excel y CSV a cada uno de los 12 indicadores desde el explorador, incluyendo fecha, valor, unidad, nombre del indicador y fuente oficial.
 
-La versión 2.13.1 corrige la comparación previa del actualizador local para los 12 indicadores. Normaliza fechas y valores decimales antes de validar, comparar e importar; distingue revisiones reales de representaciones equivalentes y bloquea la incorporación cuando no existen cambios. También conserva el Protocolo de actualización de conclusiones, la navegación móvil y los gráficos SVG.
+La versión 2.13.4 incorpora el checkpoint interno de preparación comercial, la matriz provisional de las 20 herramientas y la política de que los CT pendientes no bloquean automáticamente la beta. Preserva CT-07 pausado tras el Bloque 5 y GAP-CT07-B como candidato pendiente. La versión 2.13.3 añadió el pre-registro adversarial de CT-07; la 2.13.2 incorporó el paquete autorizado post-CT-06. Véase `PREPARACION_COMERCIAL_BETA.md`.
 
 > Estado: MVP local probado. La base incluida contiene 12 series obtenidas de los archivos oficiales conservados en el respaldo. Antes de citar un valor, revise siempre su fecha, unidad y nota metodológica.
 

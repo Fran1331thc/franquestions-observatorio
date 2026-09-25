@@ -55,6 +55,7 @@ class MvpAcceptanceTests(unittest.TestCase):
             widget for widget in app.selectbox if widget.label == "Explorar indicador"
         )
         self.assertEqual(set(explorer.options), {item.name for item in CATALOG.values()})
+        self.assertTrue(any("Cómo interpretar este dato" in item.label for item in app.expander))
 
     def test_local_updater_starts_and_exposes_all_indicators(self):
         app = AppTest.from_file(

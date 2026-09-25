@@ -2,6 +2,8 @@ __pycache__/
 *.py[cod]
 .env
 .venv/
+.venv-beta/
 fq_preferences.json
 logs/
 backups/
+Fuentes oficiales/

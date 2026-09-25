@@ -9,7 +9,10 @@ import plotly.express as px
 import streamlit as st
 
 from fq_observatorio import __version__
-from fq_observatorio.intelligence import build_conclusion_protocol
+from fq_observatorio.catalog import CATALOG
+from fq_observatorio.entitlements import has_feature
+from fq_observatorio.intelligence import analyze_series
+from fq_observatorio.public_reading import build_public_reading, validate_public_reading
 from fq_observatorio.publication_calendar import (
     build_calendar_events,
     calendar_to_ics,
@@ -315,6 +318,14 @@ def latest_statement(slug: str, latest_rows: pd.DataFrame) -> str:
     return f"{name}: {value} {unit} ({period})."
 
 
+def render_calendar_event(event: dict) -> None:
+    """Presenta un evento como ficha legible en escritorio y teléfono."""
+    with st.container(border=True):
+        st.markdown(f"**{event['name']}**")
+        st.write(event.get("date_label") or event["date"].strftime("%d/%m/%Y"))
+        st.caption(f"{event['confirmation']} · {event['source']}")
+
+
 def render_public_chart(
     data: pd.DataFrame,
     *,
@@ -348,6 +359,18 @@ def render_public_chart(
             dragmode="pan" if interactive else False,
             hovermode="x unified" if interactive else False,
             margin=dict(l=10, r=10, t=15, b=10),
+            legend=(
+                dict(
+                    orientation="h",
+                    yanchor="bottom",
+                    y=1.02,
+                    xanchor="left",
+                    x=0,
+                    title_text="",
+                )
+                if color
+                else None
+            ),
         )
         figure.update_xaxes(fixedrange=not interactive)
         figure.update_yaxes(fixedrange=not interactive)
@@ -399,6 +422,14 @@ st.markdown(
 st.caption(
     "Datos oficiales de Costa Rica con fuente, fecha y contexto. "
     f"Publicación estable {__version__}."
+)
+
+st.markdown(
+    "[Estado](#estado-de-actualizacion) · "
+    "[Calendario](#calendario-economico) · "
+    "[Mis indicadores](#mis-indicadores) · "
+    "[Explorar](#explorar-un-indicador) · "
+    "[Comparador](#comparador-de-senales)"
 )
 
 if "show_quick_start" not in st.session_state:
@@ -507,11 +538,21 @@ summary_columns[1].metric(
     int(sum(value.startswith("🟡") for value in status_frame["Estado"])),
 )
 summary_columns[2].metric(
-    "🔴 Pendientes",
+    "🔴 Actualización pendiente",
     int(sum(value.startswith("🔴") for value in status_frame["Estado"])),
 )
 with st.expander("Ver estado de los 12 indicadores"):
-    st.table(status_frame)
+    for start in range(0, len(status_rows), 2):
+        status_columns = st.columns(2)
+        for column, item in zip(status_columns, status_rows[start : start + 2]):
+            with column.container(border=True):
+                st.markdown(f"**{item['Indicador']}**")
+                st.write(item["Estado"])
+                st.caption(
+                    f"Último dato: {item['Último dato']} · "
+                    f"Antigüedad: {item['Antigüedad']}"
+                )
+                st.caption(f"Revisión recomendada: {item['Revisión recomendada']}")
 
 calendar_events = build_calendar_events(
     status_records,
@@ -547,12 +588,56 @@ if visible_calendar:
         }
         for event in visible_calendar
     )
-    st.table(calendar_frame.drop(columns=["Calendario oficial"]))
+    compact_calendar = calendar_frame.drop(columns=["Calendario oficial"])
+    for start in range(0, min(8, len(visible_calendar)), 2):
+        event_columns = st.columns(2)
+        for column, event in zip(
+            event_columns,
+            visible_calendar[start : start + 2],
+        ):
+            with column:
+                render_calendar_event(event)
+    if len(visible_calendar) > 8:
+        st.caption(
+            f"Mostrando los próximos 8 de {len(compact_calendar)} eventos del horizonte."
+        )
+        with st.expander("Ver calendario completo"):
+            current_month = None
+            month_names = (
+                "enero", "febrero", "marzo", "abril", "mayo", "junio",
+                "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
+            )
+            for event in visible_calendar:
+                month_key = (event["date"].year, event["date"].month)
+                if month_key != current_month:
+                    current_month = month_key
+                    st.markdown(
+                        f"**{month_names[event['date'].month - 1].capitalize()} "
+                        f"{event['date'].year}**"
+                    )
+                date_label = event.get("date_label") or event["date"].strftime("%d/%m/%Y")
+                st.markdown(
+                    f"- **{date_label} — {event['name']}**  \n"
+                    f"  {event['confirmation']} · {event['source']}"
+                )
     with st.expander("Abrir fuentes oficiales del calendario"):
+        unique_sources = {}
         for event in visible_calendar:
             source_url = event.get("source_url")
-            if source_url:
-                st.markdown(f"- [{event['name']} — {event['source']}]({source_url})")
+            if source_url and source_url not in unique_sources:
+                if "politica_monetaria" in source_url.lower():
+                    label = "BCCR — reuniones de política monetaria"
+                elif "calendario-esp" in source_url.lower():
+                    label = "BCCR — calendario de estadísticas"
+                elif event["source"] == "INEC":
+                    label = "INEC — calendario de divulgación"
+                elif event["source"] == "ICT/DGME":
+                    label = "ICT/DGME — movimientos migratorios"
+                else:
+                    label = event["source"]
+                unique_sources[source_url] = label
+        for source_url, source_name in unique_sources.items():
+            st.markdown(f"- [{source_name}]({source_url})")
     calendar_downloads = st.columns(2)
     calendar_downloads[0].download_button(
         "Añadir a mi calendario (.ics)",
@@ -704,9 +789,12 @@ else:
     st.info("Selecciona al menos un indicador en Mis preferencias.")
 
 for group_name, slugs in GROUPS.items():
+    remaining_slugs = [slug for slug in slugs if slug not in favorite_slugs]
+    if not remaining_slugs:
+        continue
     st.subheader(group_name)
-    columns = st.columns(4)
-    for column, slug in zip(columns, slugs):
+    columns = st.columns(min(4, len(remaining_slugs)))
+    for column, slug in zip(columns, remaining_slugs):
         name, unit, source = INDICATORS[slug]
         with column.container(border=True):
             if slug not in latest_rows.index:
@@ -723,6 +811,7 @@ for group_name, slugs in GROUPS.items():
 
 st.divider()
 
+st.subheader("Explorar un indicador")
 selected_slug = st.selectbox(
     "Explorar indicador",
     list(INDICATORS),
@@ -752,53 +841,87 @@ else:
 metric_columns[2].metric("Fuente", source)
 metric_columns[2].caption("Dato oficial")
 
-reading = FQ_READINGS[selected_slug]
-conclusion_protocol = build_conclusion_protocol(selected_slug)
-with st.expander("Lectura del método: qué sabemos y qué falta verificar"):
-    st.markdown("**Hecho comprobado**")
-    fact = (
-        f"El último dato oficial de {name} es "
-        f"{format_value(float(latest['value']), unit)} {unit}, "
-        f"correspondiente al {latest['period'].strftime('%d/%m/%Y')}."
+if has_feature("public", "public_reasoning_reading"):
+    catalog_item = CATALOG[selected_slug]
+    analysis = analyze_series(
+        [
+            {"period": row.period.date(), "value": float(row.value)}
+            for row in selected[["period", "value"]].itertuples(index=False)
+        ],
+        FREQUENCIES[selected_slug],
+        unit,
     )
-    if len(selected) > 1:
-        fact += (
-            f" Frente a la observación anterior cambió "
-            f"{change:+,.2f} {unit}."
-        )
-    st.write(fact)
-
-    st.markdown("**Qué puede significar**")
-    st.write(reading["meaning"])
-
-    st.markdown("**Hipótesis que deben investigarse**")
-    for hypothesis in reading["hypotheses"]:
-        st.markdown(f"- {hypothesis}")
-
-    st.markdown("**Preguntas de verificación**")
-    for question in VERIFICATION_QUESTIONS:
-        st.markdown(f"- {question}")
-
-    st.markdown("**Estado del conocimiento**")
-    st.write(f"Hecho: **{conclusion_protocol['fact_state']}**.")
-    st.write(
-        f"Interpretación: **{conclusion_protocol['knowledge_state']}**."
+    public_reading = build_public_reading(
+        slug=selected_slug,
+        name=name,
+        unit=unit,
+        source=catalog_item.source,
+        source_url=catalog_item.source_url,
+        analysis=analysis,
+        caveat=catalog_item.caveat,
     )
+    validate_public_reading(public_reading)
 
-    st.markdown(f"**{conclusion_protocol['mandatory_question']}**")
-    st.write(conclusion_protocol["change_mind_evidence"])
+    with st.expander("Cómo interpretar este dato"):
+        if public_reading.status == "blocked":
+            st.error("No podemos publicar una lectura completa de este dato.")
+            for reason in public_reading.blocking_reasons:
+                st.markdown(f"- {reason}")
+        else:
+            st.markdown("**Qué ocurrió**")
+            st.write(public_reading.claim)
+            st.markdown("**Qué puede significar, sin demostrar una causa**")
+            st.write(public_reading.descriptive_reading)
+            st.markdown("**Qué tan seguros estamos**")
+            for confidence in public_reading.confidence:
+                st.write(f"**{confidence.claim}: {confidence.level}.**")
+                for limitation in confidence.limitations:
+                    st.caption(f"Límite: {limitation}")
+            st.warning(
+                "Esta lectura es descriptiva: no demuestra causalidad, no es una "
+                "predicción y puede cambiar con nuevas observaciones."
+            )
 
-    st.markdown("**Incertidumbre restante**")
-    st.write(conclusion_protocol["remaining_uncertainty"])
+    if public_reading.status != "blocked":
+        with st.expander("Ver evidencia, hipótesis y trazabilidad"):
+            st.markdown("**Tipo y alcance de la evidencia**")
+            st.write(f"{public_reading.evidence_class}. {public_reading.evidence_scope}.")
 
-    st.markdown("**Condición de revisión**")
-    st.write(conclusion_protocol["revision_condition"])
+            st.markdown("**Fuente y comprobación**")
+            for item in public_reading.sources:
+                st.markdown(
+                    f"- [{item.institution}]({item.url}) · consultada el "
+                    f"{item.consulted_on.strftime('%d/%m/%Y')}"
+                )
+            st.caption("Una fuente oficial no equivale a corroboración independiente.")
 
-    st.warning(
-        "Esta lectura es descriptiva: no demuestra causalidad, no es una "
-        "predicción y puede cambiar con nuevas observaciones."
-    )
-    st.info(f"Principio FranQuestions: {conclusion_protocol['principle']}")
+            st.markdown("**Hipótesis que deben investigarse**")
+            for mechanism in public_reading.mechanisms:
+                st.markdown(f"- {mechanism}")
+            st.info(
+                "Estas posibilidades no han sido demostradas por la serie observada."
+            )
+            st.caption("Magnitud causal: no estimada · Suficiencia: no demostrada")
+
+            st.markdown("**Cómo llegamos a esta lectura**")
+            st.markdown(
+                "- **Dato utilizado:** "
+                f"{format_value(float(latest['value']), unit)} {unit}, "
+                f"correspondiente al {latest['period'].strftime('%d/%m/%Y')}."
+            )
+            st.markdown(
+                "- **Cálculo descriptivo:** trayectoria reciente "
+                f"{analysis['trend'].lower()} en "
+                f"{analysis['trend_observations']} observaciones."
+            )
+            st.markdown(f"- **Conclusión descriptiva:** {public_reading.claim}")
+
+            st.markdown("**Cuándo debe cambiar**")
+            st.write(public_reading.revision_condition)
+            st.caption(
+                "Lectura generada el "
+                f"{public_reading.generated_at.astimezone().strftime('%d/%m/%Y %H:%M %Z')}."
+            )
 
 with st.expander("Señales relacionadas: contraste entre indicadores"):
     st.caption(

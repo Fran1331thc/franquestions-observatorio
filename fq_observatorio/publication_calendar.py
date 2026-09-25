@@ -32,6 +32,41 @@ OFFICIAL_RELEASES_2026 = {
 EXCHANGE_RATE_RULE_URL = "https://www.bccr.fi.cr/marco-legal/DocReglamento/Reglamento_Operaciones_Cambiarias_Contado_BCCR.pdf"
 
 
+def _escape_ics_text(value: str) -> str:
+    """Escapa texto según RFC 5545 antes de plegar la línea."""
+    return (
+        value.replace("\\", "\\\\")
+        .replace("\r\n", "\\n")
+        .replace("\n", "\\n")
+        .replace(";", "\\;")
+        .replace(",", "\\,")
+    )
+
+
+def _fold_ics_line(line: str, limit: int = 75) -> list[str]:
+    """Pliega una línea iCalendar sin dividir caracteres UTF-8."""
+    folded = []
+    remaining = line
+    first = True
+    while remaining:
+        prefix = "" if first else " "
+        available = limit - len(prefix.encode("utf-8"))
+        size = 0
+        split_at = 0
+        for index, character in enumerate(remaining):
+            width = len(character.encode("utf-8"))
+            if size + width > available:
+                break
+            size += width
+            split_at = index + 1
+        if split_at == 0:
+            raise ValueError("No se pudo plegar una línea iCalendar en UTF-8")
+        folded.append(prefix + remaining[:split_at])
+        remaining = remaining[split_at:]
+        first = False
+    return folded or [""]
+
+
 def build_calendar_events(
     statuses: list[dict],
     names_by_slug: dict,
@@ -105,8 +140,11 @@ def calendar_to_ics(events: list[dict], generated_on: date) -> str:
     for event in events:
         day = event["date"].strftime("%Y%m%d")
         uid = f"fq-{event['slug']}-{day}@franquestions.local"
-        summary = f"Revisar {event['name']}"
-        description = f"Tipo: {event.get('confirmation', 'Estimada')}. Fuente: {event['source']}. {event['note']}".replace(",", "\\,")
+        summary = _escape_ics_text(f"Revisar {event['name']}")
+        description = _escape_ics_text(
+            f"Tipo: {event.get('confirmation', 'Estimada')}. "
+            f"Fuente: {event['source']}. {event['note']}"
+        )
         lines.extend(
             [
                 "BEGIN:VEVENT",
@@ -119,4 +157,5 @@ def calendar_to_ics(events: list[dict], generated_on: date) -> str:
             ]
         )
     lines.append("END:VCALENDAR")
-    return "\r\n".join(lines) + "\r\n"
+    physical_lines = [part for line in lines for part in _fold_ics_line(line)]
+    return "\r\n".join(physical_lines) + "\r\n"

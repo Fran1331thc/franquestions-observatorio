@@ -1,5 +1,54 @@
 # Estado del proyecto FranQuestions
 
+## Preparación comercial de la beta — 23 de septiembre de 2026
+
+- Versión operativa: 2.13.4.
+- Checkpoint interno persistente y matriz provisional de las 20 herramientas, con madurez técnica, evidencia, utilidad, límites, autorización pública y posible plan como campos separados.
+- CT-07 pausado tras el Bloque 5; GAP-CT07-B registrado como candidato pendiente. Su detalle documental aún debe preservarse antes de utilizarlo para cambios metodológicos.
+- Los CT pendientes no bloquean automáticamente la beta: solo un riesgo concreto del alcance inicial puede convertirse en condición de lanzamiento.
+- Seis capacidades experimentales accesibles únicamente en modo propietario. Pro queda como etapa comercial posterior, sin precios ni asignaciones irrevocables.
+- No cambia el comportamiento público; `PREPARACION_COMERCIAL_BETA.md` documenta el checkpoint.
+
+## Pre-registro adversarial CT-07 — 17 de septiembre de 2026
+
+- La versión operativa de ese hito fue 2.13.3.
+- CT-07 queda seleccionado, no investigado y sin evidencia incorporada.
+- La pregunta permanece provisional y pendiente de congelación definitiva.
+- Se fijan FQ-H1–FQ-H5, alternativas A–E y condiciones estrictas para un posible `GAP-CT07`.
+- Un GAP no autoriza herramienta 21: primero debe probarse alojamiento y pérdida dentro de Toolkit 0.1.
+- Evidencia, predicción y preferencias/valores quedan como categorías separadas.
+- El modo híbrido sigue con una sola ejecución completada; CT-07 sería la segunda únicamente si se completa bajo ese modo.
+- Toolkit 0.1 conserva exactamente 20 herramientas y la convergencia sigue bajo prueba, no confirmada.
+
+## Implementación post-CT-06 — 17 de septiembre de 2026
+
+- La versión operativa de ese hito fue 2.13.2.
+- CT-06 entra como `Caso canónico — CLOSE PROVISIONAL v1.0`, con actualización abierta y expediente completo trazable.
+- Su pre-registro anterior a resultados se conserva por separado; no se reescribieron retrospectivamente expectativas.
+- RP-01 registra su primera prueba prospectiva y valor operativo observado, sin validación general.
+- P-22 y P-24 pasan a `Fortalecido`; los otros seis principios activados conservan su madurez.
+- El híbrido registra una ejecución formal y sigue experimental. CT-04 sigue siendo la única validación formal delegada Work/Codex.
+- PG-01 continúa fuera de P-01–P-26 y Toolkit 0.1 conserva exactamente 20 herramientas.
+- El detalle de frontera e historial está en `POST_CT06_IMPLEMENTACION.md`.
+
+## Pre-registro CT-06 — 16 de septiembre de 2026 (estado histórico preservado)
+
+- CT-06 fue seleccionado para estudiar redes sociales y salud mental adolescente, pero permanece no investigado y sin evidencia sustantiva incorporada.
+- La pregunta es provisional y debe congelarse antes de la investigacion profunda.
+- Es la primera prueba prospectiva prevista de RP-01 y la primera ejecucion formal prevista del modo hibrido.
+- Heredar principios no cuenta como activacion, replicacion ni cambio de madurez.
+- El modo hibrido permanece experimental y no es una feature publica.
+- Toolkit 0.1 conserva exactamente 20 herramientas.
+
+## Integracion interna posterior a CT-05 — 16 de septiembre de 2026
+
+- CT-05 v1.0 se incorporo como expediente interno `CLOSE-PROVISIONAL`, con H1-H7, CP-1-CP-9, estados epistemicos, confianza, condiciones de revision, autopsias y trazabilidad.
+- RP-01 se incorporo como estructura operativa interna con P-01-P-26 canonicos; P-04, P-05 y P-06 conservan origen CT-02 reconstruido.
+- Toolkit 0.1 permanece en exactamente 20 herramientas; las extensiones nuevas reutilizan herramientas existentes.
+- CT-04 sigue siendo la unica validacion formal de investigacion delegada Work/Codex. El valor incremental de la interaccion humana y el modo hibrido permanecen experimentales.
+- No se crearon modos publicos, scores, pesos causales automaticos, veredictos automaticos, herramienta 21 ni Toolkit 0.2 oficial.
+- La implementacion y sus limites estan documentados en `POST_CT05_IMPLEMENTACION.md`.
+
 ## Candidato posterior a 2.13.1
 
 - Prueba de comprensión integrada en el comparador estandarizado.
@@ -21,7 +70,7 @@
 
 - Las gráficas de líneas, incluidas las comparaciones de señales, ahora se renderizan como SVG y no requieren WebGL.
 - Se añadió una prueba de regresión que impide volver a introducir gráficas Plotly dependientes de WebGL.
-- La versión funcional vigente quedó alineada en 2.13.1.
+- La versión funcional de ese hito quedó alineada en 2.13.1; fue sucedida por 2.13.2.
 - El Protocolo de actualización de conclusiones FQ-MET-AC-001 quedó aprobado e integrado en las lecturas y fichas de investigación.
 
 ## Corrección de estabilidad del 11 de agosto de 2026
@@ -34,11 +83,11 @@
 
 ## Punto de control del 9 de agosto de 2026
 
-**Versión operativa:** 2.13.1
+**Versión operativa:** 2.13.4
 **Carpeta canónica:** `Version actual/Publicacion/FQ_Public_v2.9.2_limpio`  
 **Estado:** MVP funcional en operación local y demostración pública de solo lectura.
 
-> La carpeta conserva `v2.9.2` en el nombre para no romper los iniciadores locales ni la publicación existente. La versión funcional vigente es 2.13.1.
+> La carpeta conserva `v2.9.2` en el nombre para no romper los iniciadores locales ni la publicación existente. La versión funcional vigente es 2.13.4.
 
 ## Verificaciones realizadas
 
@@ -51,7 +100,7 @@
 - El actualizador local carga mediante la herramienta de pruebas de Streamlit sin excepciones.
 - El código Python del Observatorio, del actualizador y del paquete compila sin errores.
 - Existe creación manual de respaldos, descarga de la copia más reciente y recuperación protegida.
-- La versión declarada por el paquete, la API, el dashboard y la documentación quedó alineada en 2.13.1.
+- La versión declarada por el paquete, el registro interno y la documentación quedó alineada en 2.13.4.
 
 ## Capacidades consolidadas
 
@@ -60,7 +109,7 @@
 3. Preferencias con hasta seis indicadores favoritos.
 4. Estado de actualización y calendario económico.
 5. Lecturas descriptivas, señales relacionadas y advertencias contra conclusiones causales indebidas.
-6. Descargas de fichas, series, panorama y calendario.
+6. Descargas públicas de panorama, calendario y comparación de indicadores.
 7. Actualización local con vista previa y confirmación humana.
 8. Comparación que distingue observaciones nuevas, revisiones y filas sin cambios.
 9. Historial de ingestas, respaldos y recuperación protegida.

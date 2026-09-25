@@ -21,6 +21,7 @@ FEATURE_LABELS = {
     "historical_charts": "Gráficos históricos",
     "indicator_explanations": "Fichas explicativas",
     "local_preferences": "Indicadores favoritos y preferencias locales",
+    "public_reasoning_reading": "Lectura pública verificable",
     "full_executive_summary": "Resumen ejecutivo completo",
     "cross_indicator_analysis": "Contraste completo entre indicadores",
     "research_brief_download": "Descarga de fichas de investigación",
@@ -49,6 +50,7 @@ PUBLIC_FEATURES = {
     "historical_charts",
     "indicator_explanations",
     "local_preferences",
+    "public_reasoning_reading",
 }
 
 PRO_FEATURES = PUBLIC_FEATURES | {
@@ -83,15 +85,20 @@ PLAN_FEATURES = {
 }
 
 
-def normalize_plan(plan: str) -> str:
-    normalized = (plan or "owner").strip().lower()
-    return normalized if normalized in PLAN_FEATURES else "owner"
+def normalize_plan(plan: str | None) -> str | None:
+    """Normaliza planes conocidos y deniega por defecto cualquier otro valor."""
+    normalized = (plan or "").strip().lower()
+    return normalized if normalized in PLAN_FEATURES else None
 
 
-def has_feature(plan: str, feature: str) -> bool:
+def has_feature(plan: str | None, feature: str) -> bool:
     """Indica si un plan tiene una función; una función desconocida nunca se habilita."""
-    return feature in PLAN_FEATURES[normalize_plan(plan)]
+    normalized = normalize_plan(plan)
+    return normalized is not None and feature in PLAN_FEATURES[normalized]
 
 
-def features_for_plan(plan: str) -> tuple[str, ...]:
-    return tuple(sorted(PLAN_FEATURES[normalize_plan(plan)]))
+def features_for_plan(plan: str | None) -> tuple[str, ...]:
+    normalized = normalize_plan(plan)
+    if normalized is None:
+        return ()
+    return tuple(sorted(PLAN_FEATURES[normalized]))
