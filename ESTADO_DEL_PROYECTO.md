@@ -113,12 +113,12 @@
 7. Actualización local con vista previa y confirmación humana.
 8. Comparación que distingue observaciones nuevas, revisiones y filas sin cambios.
 9. Historial de ingestas, respaldos y recuperación protegida.
-10. Conector piloto del BCCR preparado para activarse cuando existan credenciales válidas.
+10. Conector piloto migrado a la API SDDE REST/JSON del BCCR, preparado para activarse cuando exista un token válido.
 
 ## Límites actuales
 
 - La aplicación pública no modifica la base oficial; la administración permanece local.
-- El webservice del BCCR sigue bloqueado hasta recibir credenciales oficiales.
+- La consulta automática del BCCR sigue bloqueada hasta que la persona propietaria genere su token en línea desde Mi perfil.
 - Varias fuentes todavía se actualizan cargando manualmente archivos descargados de sus sitios oficiales.
 - La demostración pública no sustituye todavía una arquitectura multiusuario con autenticación y base administrada.
 - Las lecturas automáticas son descriptivas: no son pronósticos, recomendaciones ni demostraciones de causalidad.

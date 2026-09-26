@@ -1,3 +1,4 @@
+import json
 import logging
 import xml.etree.ElementTree as ET
 from datetime import date, datetime
@@ -17,24 +18,65 @@ class BCCRConnector:
         self.client = client or httpx.Client(timeout=self.settings.http_timeout_seconds)
 
     def fetch(self, indicator_code: str, start: date, end: date) -> list[dict]:
-        if not all((self.settings.bccr_name, self.settings.bccr_email, self.settings.bccr_token)):
-            raise CredentialsError("BCCR requiere FQ_BCCR_NAME, FQ_BCCR_EMAIL y FQ_BCCR_TOKEN")
-        payload = {
-            "Indicador": indicator_code,
-            "FechaInicio": start.strftime("%d/%m/%Y"),
-            "FechaFinal": end.strftime("%d/%m/%Y"),
-            "Nombre": self.settings.bccr_name,
-            "SubNiveles": "N",
-            "CorreoElectronico": self.settings.bccr_email,
-            "Token": self.settings.bccr_token,
+        if not self.settings.bccr_token:
+            raise CredentialsError("BCCR requiere FQ_BCCR_TOKEN")
+        url = (
+            f"{self.settings.bccr_base_url.rstrip('/')}"
+            f"/indicadoresEconomicos/{indicator_code}/series"
+        )
+        params = {
+            "fechaInicio": start.strftime("%Y/%m/%d"),
+            "fechaFin": end.strftime("%Y/%m/%d"),
+            "idioma": "ES",
+        }
+        headers = {
+            "Authorization": f"Bearer {self.settings.bccr_token}",
+            "Accept": "application/json",
         }
         try:
-            response = self.client.post(self.settings.bccr_base_url, data=payload)
+            response = self.client.get(url, params=params, headers=headers)
             response.raise_for_status()
-            return self.parse(response.text)
+            return self.parse_json(response.json())
         except httpx.HTTPError as exc:
             logger.exception("Fallo HTTP al consultar BCCR", extra={"indicator": indicator_code})
             raise ConnectorError(f"No se pudo consultar BCCR: {exc}") from exc
+
+    @staticmethod
+    def parse_json(payload: dict | str) -> list[dict]:
+        if isinstance(payload, str):
+            try:
+                payload = json.loads(payload)
+            except json.JSONDecodeError as exc:
+                raise ConnectorError("BCCR devolvio JSON invalido") from exc
+        if not isinstance(payload, dict) or payload.get("estado") is False:
+            message = (
+                payload.get("mensaje", "respuesta no reconocida")
+                if isinstance(payload, dict)
+                else "respuesta no reconocida"
+            )
+            raise ConnectorError(f"BCCR no completo la consulta: {message}")
+
+        rows = []
+        for indicator in payload.get("datos", []):
+            for item in indicator.get("series", []):
+                raw_date = str(item.get("fecha", ""))
+                raw_value = item.get("valorDatoPorPeriodo")
+                if not raw_date or raw_value is None:
+                    continue
+                try:
+                    rows.append(
+                        {
+                            "period": BCCRConnector._parse_date(raw_date),
+                            "value": BCCRConnector._parse_value(str(raw_value)),
+                        }
+                    )
+                except (ValueError, InvalidOperation) as exc:
+                    raise ConnectorError(
+                        f"Fila BCCR invalida: fecha={raw_date}, valor={raw_value}"
+                    ) from exc
+        if not rows:
+            raise ConnectorError("La respuesta BCCR no contiene observaciones reconocibles")
+        return rows
 
     @staticmethod
     def _parse_date(raw_date: str) -> date:
@@ -60,6 +102,7 @@ class BCCRConnector:
 
     @staticmethod
     def parse(raw_xml: str) -> list[dict]:
+        """Compatibilidad para validar respuestas archivadas del servicio anterior."""
         try:
             root = ET.fromstring(raw_xml)
             # El endpoint envuelve el XML de datos como texto escapado.

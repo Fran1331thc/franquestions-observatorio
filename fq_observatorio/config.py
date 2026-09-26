@@ -16,8 +16,8 @@ class Settings(BaseSettings):
     bccr_email: str = ""
     bccr_token: str = ""
     bccr_base_url: str = (
-        "https://gee.bccr.fi.cr/Indicadores/Suscripciones/WS/"
-        "wsindicadoreseconomicos.asmx/ObtenerIndicadoresEconomicosXML"
+        "https://apim.bccr.fi.cr/SDDE/api/"
+        "Bccr.Ge.SDDE.Publico.Indicadores.API"
     )
     inec_data_url: str = ""
     http_timeout_seconds: float = 30.0

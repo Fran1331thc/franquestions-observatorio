@@ -32,6 +32,28 @@ MANUAL_REQUIREMENTS = {
     "fdi": "1 archivo XLS exportado del cuadro oficial",
 }
 
+UPDATE_MODES = {
+    "exchange-rate": "Automatica supervisada",
+    "policy-rate": "Semiautomatica",
+    "inflation": "Semiautomatica",
+    "imae": "Semiautomatica",
+    "unemployment": "Semiautomatica",
+    "poverty": "Semiautomatica",
+    "fiscal-balance": "Semiautomatica",
+    "public-debt": "Semiautomatica",
+    "reserves": "Semiautomatica",
+    "exports": "Semiautomatica",
+    "tourism": "Semiautomatica",
+    "fdi": "Semiautomatica",
+}
+
+HUMAN_ROLES = {
+    "exchange-rate": "Confirmar la ejecucion y revisar el reporte",
+    "public-debt": "Descargar 2 archivos, revisar la vista previa y confirmar",
+}
+
+DEFAULT_HUMAN_ROLE = "Descargar el archivo oficial, revisar la vista previa y confirmar"
+
 
 @dataclass(frozen=True)
 class IndicatorUpdatePlan:
@@ -41,9 +63,12 @@ class IndicatorUpdatePlan:
     start: date
     end: date
     observation_frequency: str
+    update_mode: str
     mechanism: str
     readiness: str
     requirement: str
+    human_role: str
+    next_action: str
     writes_require_confirmation: bool = True
 
     def as_dict(self) -> dict:
@@ -82,13 +107,19 @@ def build_all_update_plans(
             start = end
 
         if slug == "exchange-rate":
-            mechanism = "Webservice BCCR"
+            mechanism = "API SDDE del BCCR"
             readiness = "Listo" if bccr_credentials_ready else "Esperando credenciales"
-            requirement = "Nombre, correo y token entregados por el BCCR"
+            requirement = "Token generado en Mi perfil del BCCR"
+            next_action = (
+                "Ejecutar la consulta y revisar el reporte"
+                if bccr_credentials_ready
+                else "Registrar la cuenta y configurar el token del BCCR"
+            )
         else:
             mechanism = "Archivo oficial con vista previa"
             readiness = "Disponible con revision humana"
             requirement = MANUAL_REQUIREMENTS[slug]
+            next_action = f"Descargar y cargar {requirement.lower()}"
 
         plans.append(
             IndicatorUpdatePlan(
@@ -98,9 +129,24 @@ def build_all_update_plans(
                 start=start,
                 end=end,
                 observation_frequency=frequency,
+                update_mode=UPDATE_MODES[slug],
                 mechanism=mechanism,
                 readiness=readiness,
                 requirement=requirement,
+                human_role=HUMAN_ROLES.get(slug, DEFAULT_HUMAN_ROLE),
+                next_action=next_action,
             )
         )
     return plans
+
+
+def summarize_update_modes(plans: list[IndicatorUpdatePlan]) -> dict[str, int]:
+    """Resume el reparto operativo sin consultar fuentes ni modificar datos."""
+    summary = {
+        "Automatica supervisada": 0,
+        "Semiautomatica": 0,
+        "Manual": 0,
+    }
+    for plan in plans:
+        summary[plan.update_mode] = summary.get(plan.update_mode, 0) + 1
+    return summary

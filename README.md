@@ -32,7 +32,7 @@ El **Calendario económico** muestra fechas operativas estimadas para revisar la
 - Recorrido inicial de un minuto, opcional y persistente, para orientar a nuevos usuarios sin saturarlos.
 - Tablas para fuentes, series, observaciones, revisiones, ingestas y alertas.
 - PostgreSQL en Docker y SQLite para una prueba inmediata.
-- Conector BCCR XML con credenciales por entorno.
+- Conector BCCR REST/JSON con token seguro por entorno.
 - Conector INEC parametrizable para CSV oficiales.
 - Validacion de faltantes, duplicados, fechas, cambios extremos y frecuencia.
 - FastAPI: catalogo, metadatos, observaciones y ultimo valor.
@@ -296,15 +296,13 @@ o la posicion acumulada de inversion internacional.
 
 ### BCCR
 
-El servicio oficial requiere suscripcion:
+El servicio oficial requiere registro. Para consultar series solo se configura el token:
 
 ```dotenv
-FQ_BCCR_NAME=Nombre de la persona usuaria
-FQ_BCCR_EMAIL=correo@ejemplo.com
-FQ_BCCR_TOKEN=token-entregado-por-bccr
+FQ_BCCR_TOKEN=token-generado-en-mi-perfil
 ```
 
-`ObtenerIndicadoresEconomicosXML` recibe codigo, rango `dd/mm/yyyy`, nombre, correo y token. Consulte la [guia oficial](https://gee.bccr.fi.cr/indicadoreseconomicos/Documentos/DocumentosMetodologiasNotasTecnicas/Webservices_de_indicadores_economicos.pdf) y el [catalogo publico](https://gee.bccr.fi.cr/Indicadores/Suscripciones/UI/ConsultaIndicadores). El codigo `318` se incluye como piloto para tipo de cambio; los restantes deben confirmarse en el catalogo vigente.
+La API SDDE recibe el codigo y el rango `yyyy/mm/dd`; el token se envia como `Bearer` en el encabezado de autorizacion. El token se genera en linea desde **Mi perfil → Generar token** y nunca debe guardarse en GitHub. Consulte el [estandar oficial de la API](https://gee.bccr.fi.cr/indicadoreseconomicos/Documentos/DocumentosMetodologiasNotasTecnicas/Estandar_API_SDDE.pdf). El codigo `318` se incluye como piloto para tipo de cambio; los restantes deben confirmarse en el catalogo vigente.
 
 ```python
 from datetime import date
@@ -354,7 +352,7 @@ ventana de revision, frecuencia observada, mecanismo y requisito. Todas las
 ventanas incluyen solapamiento para detectar revisiones y todas las escrituras
 requieren confirmacion.
 
-- **Tipo de cambio:** preparado para el webservice BCCR; espera credenciales.
+- **Tipo de cambio:** preparado para la API SDDE del BCCR; espera el token generado por la persona propietaria.
 - **Otros 11 indicadores:** disponibles mediante sus archivos oficiales con
   vista previa, respaldo, validacion y confirmacion humana.
 - **Deuda/PIB:** exige dos archivos oficiales para no mezclar saldos de deuda
@@ -430,7 +428,7 @@ tests/                 pruebas basicas
 
 ## Pendiente para produccion
 
-1. Obtener y validar las credenciales oficiales del webservice del BCCR; mientras tanto se mantiene la carga manual controlada.
+1. Crear la cuenta del BCCR, generar el token en Mi perfil y validarlo contra la API SDDE; mientras tanto se mantiene la carga manual controlada.
 2. Automatizar gradualmente las fuentes que hoy requieren archivos oficiales descargados por una persona.
 3. Versionar formalmente metodologias, licencias y cambios de estructura publicados por cada institucion.
 4. Migrar la persistencia de produccion a PostgreSQL administrado antes de admitir multiples operadores.

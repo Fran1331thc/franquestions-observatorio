@@ -12,6 +12,7 @@ import pandas as pd
 import streamlit as st
 
 from fq_observatorio.catalog import CATALOG
+from fq_observatorio.automation_readiness import priority_automation_candidates
 from fq_observatorio.backup import backup_sqlite_database, restore_sqlite_database
 from fq_observatorio.connection_checks import check_bccr_connection
 from fq_observatorio.exchange_rate_job import (
@@ -34,7 +35,7 @@ from fq_observatorio.manual_import import (
 )
 from fq_observatorio.ingestion_history import recent_runs, status_counts
 from fq_observatorio.seed import seed_catalog
-from fq_observatorio.update_plans import build_all_update_plans
+from fq_observatorio.update_plans import build_all_update_plans, summarize_update_modes
 from fq_observatorio.validation import validate_series
 
 
@@ -266,6 +267,11 @@ if recovery_message := st.session_state.pop("recovery-success", None):
 
 with st.expander("Historial y control de actualizaciones"):
     st.markdown("#### Comprobar acceso al BCCR")
+    st.info(
+        "El acceso no requiere una visita presencial: registre una cuenta en el sitio "
+        "de Indicadores Economicos del BCCR y, en Mi perfil, elija Generar token. "
+        "Guarde ese token como secreto; no lo pegue en el codigo ni lo suba a GitHub."
+    )
     st.caption(
         "La prueba consulta una muestra corta del tipo de cambio. "
         "No incorpora ni modifica observaciones."
@@ -296,17 +302,11 @@ with st.expander("Historial y control de actualizaciones"):
         f"{exchange_plan.overlap_days} dias para detectar revisiones."
     )
     current_settings = get_settings()
-    bccr_ready = all(
-        (
-            current_settings.bccr_name,
-            current_settings.bccr_email,
-            current_settings.bccr_token,
-        )
-    )
+    bccr_ready = bool(current_settings.bccr_token)
     if not bccr_ready:
         st.info(
             "La actualizacion permanecera bloqueada hasta configurar las "
-            "credenciales entregadas por el BCCR."
+            "el token generado en Mi perfil del sitio del BCCR."
         )
     apply_confirmed = st.checkbox(
         "Confirmo que deseo crear un respaldo y aplicar solo datos validados.",
@@ -435,6 +435,20 @@ with st.expander("Plan de actualizacion de los 12 indicadores"):
             plans_session,
             bccr_credentials_ready=credentials_ready,
         )
+    mode_summary = summarize_update_modes(update_plans)
+    summary_columns = st.columns(3)
+    summary_columns[0].metric(
+        "Automaticos supervisados",
+        mode_summary["Automatica supervisada"],
+    )
+    summary_columns[1].metric(
+        "Semiautomaticos",
+        mode_summary["Semiautomatica"],
+    )
+    summary_columns[2].metric(
+        "Manuales",
+        mode_summary["Manual"],
+    )
     plans_frame = pd.DataFrame([plan.as_dict() for plan in update_plans]).rename(
         columns={
             "indicator": "Indicador",
@@ -442,9 +456,12 @@ with st.expander("Plan de actualizacion de los 12 indicadores"):
             "start": "Inicio de revision",
             "end": "Fin",
             "observation_frequency": "Frecuencia",
+            "update_mode": "Nivel de automatizacion",
             "mechanism": "Mecanismo",
             "readiness": "Estado",
             "requirement": "Requisito",
+            "human_role": "Responsabilidad humana",
+            "next_action": "Siguiente accion",
             "writes_require_confirmation": "Confirmacion obligatoria",
         }
     )
@@ -453,8 +470,41 @@ with st.expander("Plan de actualizacion de los 12 indicadores"):
         hide_index=True,
     )
     st.caption(
-        "Los periodos incluyen solapamiento para detectar revisiones. "
-        "Ningun plan escribe datos sin validacion y confirmacion."
+        "Automatica supervisada significa que la herramienta consulta la fuente, "
+        "pero una persona autoriza la escritura. Semiautomatica significa que una "
+        "persona descarga el archivo y la herramienta lo interpreta, valida y compara. "
+        "Los periodos incluyen solapamiento para detectar revisiones y ningun plan "
+        "escribe datos sin validacion y confirmacion."
+    )
+
+with st.expander("Ruta para la siguiente automatizacion"):
+    st.write(
+        "Esta evaluacion no cambia el nivel de ningun indicador. Identifica las "
+        "barreras que deben superarse antes de automatizar una fuente nueva."
+    )
+    candidates_frame = pd.DataFrame(
+        [candidate.as_dict() for candidate in priority_automation_candidates()]
+    ).rename(
+        columns={
+            "indicator": "Indicador",
+            "priority": "Prioridad",
+            "official_source": "Fuente oficial",
+            "machine_endpoint_verified": "Conexion automatica verificada",
+            "official_series_code_verified": "Codigo de serie verificado",
+            "candidate_series_code": "Codigo candidato",
+            "code_evidence": "Evidencia del codigo",
+            "parser_available": "Interprete disponible",
+            "validation_available": "Validacion disponible",
+            "shadow_runs_required": "Pruebas en sombra pendientes",
+            "next_experiment": "Siguiente experimento",
+            "ready_for_supervised_automation": "Lista para ascender",
+        }
+    )
+    st.dataframe(candidates_frame.drop(columns=["slug"]), hide_index=True)
+    st.info(
+        "Una prueba en sombra consulta, interpreta y compara datos, pero no los "
+        "escribe. El indicador solo asciende despues de tres resultados correctos "
+        "y repetibles."
     )
 
 slug = st.selectbox(

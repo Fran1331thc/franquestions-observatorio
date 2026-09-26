@@ -5,6 +5,28 @@ from fq_observatorio.connectors.bccr import BCCRConnector
 
 
 class BCCRConnectorTests(unittest.TestCase):
+    def test_parses_new_api_json(self):
+        payload = {
+            "estado": True,
+            "mensaje": "Consulta exitosa",
+            "datos": [
+                {
+                    "codigoIndicador": "318",
+                    "series": [
+                        {"fecha": "2026-08-01", "valorDatoPorPeriodo": 452.51},
+                        {"fecha": "2026-08-02", "valorDatoPorPeriodo": "453,25"},
+                    ],
+                }
+            ],
+        }
+        rows = BCCRConnector.parse_json(payload)
+        self.assertEqual(rows[0]["period"].isoformat(), "2026-08-01")
+        self.assertEqual(rows[1]["value"], Decimal("453.25"))
+
+    def test_new_api_error_is_not_treated_as_data(self):
+        with self.assertRaisesRegex(Exception, "Token vencido"):
+            BCCRConnector.parse_json({"estado": False, "mensaje": "Token vencido", "datos": []})
+
     def test_parses_iso_and_day_first_dates(self):
         raw = """
         <DATOS>
