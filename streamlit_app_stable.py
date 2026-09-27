@@ -692,6 +692,16 @@ if source_health["ok"]:
                 f"Último dato en la fuente: {preview['source_latest'] or 'sin datos'} · "
                 "Escrituras realizadas: 0. No existe un botón para aplicar cambios."
             )
+            st.markdown("**Lista de revisión previa a cualquier autorización futura**")
+            st.caption(
+                f"Fuente: {preview['source']} · indicador: {preview['indicator_code']} · "
+                f"periodo consultado: {preview['start']} a {preview['end']}."
+            )
+            st.dataframe(
+                pd.DataFrame(preview["review_checklist"]),
+                hide_index=True,
+                width="stretch",
+            )
 elif source_health["configured"]:
     st.info(
         "El conector del BCCR está configurado; la verificación de la fuente "

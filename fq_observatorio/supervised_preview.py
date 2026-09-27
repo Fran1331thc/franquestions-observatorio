@@ -58,6 +58,55 @@ def evaluate_readiness(
     )
 
 
+def build_human_review_checklist(preview: dict[str, Any]) -> list[dict[str, str]]:
+    """Traduce las salvaguardas técnicas en verificaciones comprensibles."""
+    gate = preview["gate"]
+    candidates = preview.get("candidates", [])
+    revisions = sum(row.get("Acción") == "Revisar" for row in candidates)
+    return [
+        {
+            "Comprobación": "Historial íntegro",
+            "Estado": "Cumple" if gate["chain_valid"] else "Bloquea",
+            "Evidencia": "Cadena criptográfica verificada"
+            if gate["chain_valid"]
+            else "La cadena no supera la verificación",
+        },
+        {
+            "Comprobación": "Repetición independiente",
+            "Estado": "Cumple"
+            if gate["successful_days"] >= gate["required_days"]
+            else "Pendiente",
+            "Evidencia": (
+                f"{gate['successful_days']}/{gate['required_days']} días satisfactorios"
+            ),
+        },
+        {
+            "Comprobación": "Validación actual",
+            "Estado": "Cumple" if preview["errors"] == 0 else "Bloquea",
+            "Evidencia": f"{preview['errors']} errores; {preview['warnings']} advertencias",
+        },
+        {
+            "Comprobación": "Prueba sin escritura",
+            "Estado": "Cumple"
+            if gate["read_only_history"] and not preview["writes_performed"]
+            else "Bloquea",
+            "Evidencia": "0 escrituras realizadas"
+            if not preview["writes_performed"]
+            else "Se detectaron escrituras",
+        },
+        {
+            "Comprobación": "Revisiones de valores existentes",
+            "Estado": "Cumple" if revisions == 0 else "Revisión humana",
+            "Evidencia": f"{revisions} valores publicados cambiarían",
+        },
+        {
+            "Comprobación": "Autorización humana final",
+            "Estado": "No solicitada",
+            "Evidencia": "No existe un control para aplicar cambios en esta etapa",
+        },
+    ]
+
+
 def build_supervised_preview(
     session: Any,
     *,
@@ -121,7 +170,11 @@ def build_supervised_preview(
         for row in comparison.revised_rows
     )
     candidates.sort(key=lambda row: row["Fecha"], reverse=True)
-    return {
+    preview = {
+        "source": "BCCR",
+        "indicator_code": indicator_code,
+        "start": start.isoformat(),
+        "end": end.isoformat(),
         "rows_received": len(rows),
         "unchanged": comparison.unchanged,
         "errors": errors,
@@ -136,3 +189,5 @@ def build_supervised_preview(
         "gate": gate.as_dict(),
         "writes_performed": False,
     }
+    preview["review_checklist"] = build_human_review_checklist(preview)
+    return preview
