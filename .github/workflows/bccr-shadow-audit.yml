@@ -1,0 +1,39 @@
+name: BCCR shadow audit
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "30 23 * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bccr-shadow-audit-stable-public
+  cancel-in-progress: false
+
+jobs:
+  shadow-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: stable-public
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install application dependencies
+        run: pip install -r requirements.txt
+      - name: Run read-only BCCR shadow check
+        env:
+          FQ_BCCR_TOKEN: ${{ secrets.FQ_BCCR_TOKEN }}
+          PYTHONPATH: .
+        run: python scripts/run_bccr_shadow_audit.py
+      - name: Commit append-only audit record
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add audit_reports/bccr_exchange_rate_shadow.jsonl
+          git diff --cached --quiet || git commit -m "Record BCCR shadow audit run"
+          git push origin HEAD:stable-public

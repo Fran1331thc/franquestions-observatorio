@@ -23,10 +23,16 @@ from fq_observatorio.publication_calendar import (
 )
 from fq_observatorio.panorama_pdf import build_panorama_pdf
 from fq_observatorio.shadow_updates import execute_bccr_shadow_check
+from fq_observatorio.shadow_audit import (
+    independent_successful_days,
+    load_shadow_audit,
+    verify_shadow_audit,
+)
 
 
 APP_DIR = Path(__file__).resolve().parent
 DATABASE = APP_DIR / "franquestions.db"
+SHADOW_AUDIT_LEDGER = APP_DIR / "audit_reports" / "bccr_exchange_rate_shadow.jsonl"
 CR_TIMEZONE = ZoneInfo("America/Costa_Rica")
 
 
@@ -583,6 +589,48 @@ if source_health["ok"]:
             f"Último dato en la fuente: {shadow_report['source_latest'] or 'sin datos'} · "
             "Escrituras realizadas: 0."
         )
+    shadow_history = load_shadow_audit(SHADOW_AUDIT_LEDGER)
+    with st.expander("Ver historial auditable de pruebas en sombra"):
+        if not shadow_history:
+            st.info(
+                "El historial automático comenzará cuando se ejecute el flujo programado "
+                "en GitHub. La prueba interactiva actual todavía no cuenta como una "
+                "ejecución independiente registrada."
+            )
+        else:
+            chain_ok = verify_shadow_audit(shadow_history)
+            successful_days = independent_successful_days(shadow_history)
+            history_columns = st.columns(3)
+            history_columns[0].metric("Ejecuciones registradas", len(shadow_history))
+            history_columns[1].metric("Días satisfactorios", f"{successful_days}/3")
+            history_columns[2].metric(
+                "Integridad del historial", "Verificada" if chain_ok else "No válida"
+            )
+            history_frame = pd.DataFrame(shadow_history)
+            visible_columns = [
+                "costa_rica_date",
+                "passed",
+                "rows_received",
+                "new_rows",
+                "revised_rows",
+                "errors",
+                "source_latest",
+                "writes_performed",
+            ]
+            st.dataframe(
+                history_frame[
+                    [column for column in visible_columns if column in history_frame.columns]
+                ].sort_values("costa_rica_date", ascending=False),
+                hide_index=True,
+                width="stretch",
+            )
+            st.download_button(
+                "Descargar historial verificable (.jsonl)",
+                SHADOW_AUDIT_LEDGER.read_bytes(),
+                file_name="FQ_historial_pruebas_sombra_bccr.jsonl",
+                mime="application/x-ndjson",
+                width="stretch",
+            )
 elif source_health["configured"]:
     st.info(
         "El conector del BCCR está configurado; la verificación de la fuente "
