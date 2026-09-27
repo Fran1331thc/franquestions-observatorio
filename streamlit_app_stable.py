@@ -11,8 +11,8 @@ import streamlit as st
 from fq_observatorio import __version__
 from fq_observatorio.catalog import CATALOG
 from fq_observatorio.config import Settings
-from fq_observatorio.connection_checks import check_bccr_connection
 from fq_observatorio.connectors import BCCRConnector
+from fq_observatorio.db import SessionLocal
 from fq_observatorio.entitlements import has_feature
 from fq_observatorio.intelligence import analyze_series
 from fq_observatorio.public_reading import build_public_reading, validate_public_reading
@@ -21,6 +21,7 @@ from fq_observatorio.publication_calendar import (
     calendar_to_ics,
 )
 from fq_observatorio.panorama_pdf import build_panorama_pdf
+from fq_observatorio.shadow_updates import execute_bccr_shadow_check
 
 
 APP_DIR = Path(__file__).resolve().parent
@@ -28,18 +29,28 @@ DATABASE = APP_DIR / "franquestions.db"
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
-def bccr_read_only_health() -> dict:
-    """Comprueba el acceso al BCCR sin escribir datos ni revelar credenciales."""
+def bccr_read_only_shadow() -> dict:
+    """Consulta, valida y compara el BCCR sin escribir ni revelar credenciales."""
     try:
         token = str(st.secrets["FQ_BCCR_TOKEN"])
     except Exception:
         return {"ok": False, "configured": False}
 
-    result = check_bccr_connection(
-        BCCRConnector(settings=Settings(bccr_token=token)),
-        today=date.today(),
-    )
-    return {"ok": result.ok, "configured": result.configured}
+    end = date.today()
+    start = end - timedelta(days=45)
+    try:
+        with SessionLocal() as session:
+            report = execute_bccr_shadow_check(
+                session,
+                slug="exchange-rate",
+                indicator_code="318",
+                start=start,
+                end=end,
+                connector=BCCRConnector(settings=Settings(bccr_token=token)),
+            )
+    except Exception:
+        return {"ok": False, "configured": True}
+    return {"ok": report.passed, "configured": True, "report": report.as_dict()}
 
 INDICATORS = {
     "exchange-rate": ("Tipo de cambio CRC/USD", "CRC por USD", "BCCR"),
@@ -544,11 +555,27 @@ for slug in INDICATORS:
     )
 
 st.subheader("Estado de actualización")
-source_health = bccr_read_only_health()
+source_health = bccr_read_only_shadow()
 if source_health["ok"]:
     st.success(
         "Conexión automática con el BCCR verificada en modo de solo lectura."
     )
+    shadow_report = source_health["report"]
+    with st.expander("Ver primera prueba en sombra del tipo de cambio"):
+        st.caption(
+            "La fuente se consultó, validó y comparó con la base publicada. "
+            "Esta prueba no escribe datos."
+        )
+        shadow_columns = st.columns(4)
+        shadow_columns[0].metric("Filas recibidas", shadow_report["rows_received"])
+        shadow_columns[1].metric("Datos nuevos", shadow_report["new_rows"])
+        shadow_columns[2].metric("Revisiones", shadow_report["revised_rows"])
+        shadow_columns[3].metric("Errores", shadow_report["errors"])
+        st.caption(
+            f"Último dato publicado: {shadow_report['database_latest'] or 'sin datos'} · "
+            f"Último dato en la fuente: {shadow_report['source_latest'] or 'sin datos'} · "
+            "Escrituras realizadas: 0."
+        )
 elif source_health["configured"]:
     st.info(
         "El conector del BCCR está configurado; la verificación de la fuente "
