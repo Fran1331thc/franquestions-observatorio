@@ -2,7 +2,8 @@
 
 from pathlib import Path
 import sqlite3
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 import plotly.express as px
@@ -26,6 +27,12 @@ from fq_observatorio.shadow_updates import execute_bccr_shadow_check
 
 APP_DIR = Path(__file__).resolve().parent
 DATABASE = APP_DIR / "franquestions.db"
+CR_TIMEZONE = ZoneInfo("America/Costa_Rica")
+
+
+def costa_rica_today() -> date:
+    """Fecha civil de Costa Rica, independiente de la zona horaria del servidor."""
+    return datetime.now(CR_TIMEZONE).date()
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
@@ -36,7 +43,7 @@ def bccr_read_only_shadow() -> dict:
     except Exception:
         return {"ok": False, "configured": False}
 
-    end = date.today()
+    end = costa_rica_today()
     start = end - timedelta(days=45)
     try:
         with SessionLocal() as session:
@@ -313,7 +320,7 @@ def freshness_status(slug: str, period: pd.Timestamp) -> dict:
     frequency = FREQUENCIES[slug]
     fresh_days, warning_days = FRESHNESS_WINDOWS[frequency]
     latest_date = period.date()
-    age_days = max(0, (date.today() - latest_date).days)
+    age_days = max(0, (costa_rica_today() - latest_date).days)
     if age_days <= fresh_days:
         return {
             "status": "Al día",
@@ -627,11 +634,11 @@ horizon_days = st.selectbox(
     index=2,
     format_func=lambda days: f"Próximos {days} días",
 )
-calendar_limit = date.today() + timedelta(days=horizon_days)
+calendar_limit = costa_rica_today() + timedelta(days=horizon_days)
 visible_calendar = [
     event
     for event in calendar_events
-    if date.today() <= event["date"] <= calendar_limit
+    if costa_rica_today() <= event["date"] <= calendar_limit
 ]
 if visible_calendar:
     calendar_frame = pd.DataFrame(
@@ -698,15 +705,15 @@ if visible_calendar:
     calendar_downloads = st.columns(2)
     calendar_downloads[0].download_button(
         "Añadir a mi calendario (.ics)",
-        calendar_to_ics(visible_calendar, date.today()).encode("utf-8"),
-        file_name=f"FQ_calendario_economico_{date.today().isoformat()}.ics",
+        calendar_to_ics(visible_calendar, costa_rica_today()).encode("utf-8"),
+        file_name=f"FQ_calendario_economico_{costa_rica_today().isoformat()}.ics",
         mime="text/calendar; charset=utf-8",
         width="stretch",
     )
     calendar_downloads[1].download_button(
         "Descargar tabla compatible (.csv)",
         ("\ufeff" + calendar_frame.to_csv(index=False, sep=";")).encode("utf-8"),
-        file_name=f"FQ_calendario_economico_{date.today().isoformat()}.csv",
+        file_name=f"FQ_calendario_economico_{costa_rica_today().isoformat()}.csv",
         mime="text/csv; charset=utf-8",
         width="stretch",
     )
@@ -789,13 +796,13 @@ for slug in INDICATORS:
 
 panorama_pdf = build_panorama_pdf(
     panorama_records,
-    date.today(),
+    costa_rica_today(),
     attention_items,
 )
 st.download_button(
     "Descargar Panorama Económico (.pdf)",
     panorama_pdf,
-    file_name=f"FQ_Panorama_Economico_{date.today().isoformat()}.pdf",
+    file_name=f"FQ_Panorama_Economico_{costa_rica_today().isoformat()}.pdf",
     mime="application/pdf",
     width="stretch",
 )

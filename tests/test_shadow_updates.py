@@ -20,6 +20,11 @@ class FakeConnector:
         ]
 
 
+class FutureRowConnector:
+    def fetch(self, indicator_code, start, end):
+        return [{"period": date(2026, 9, 26), "value": Decimal("3.25")}]
+
+
 class ShadowUpdateTests(unittest.TestCase):
     def setUp(self):
         temporary = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
@@ -74,6 +79,20 @@ class ShadowUpdateTests(unittest.TestCase):
             self.assertEqual(len(before), len(after))
             self.assertFalse(session.new)
             self.assertFalse(session.dirty)
+
+    def test_shadow_check_rejects_rows_after_requested_end(self):
+        with self.Session() as session:
+            report = execute_bccr_shadow_check(
+                session,
+                slug="policy-rate",
+                indicator_code="3541",
+                start=date(2026, 8, 24),
+                end=date(2026, 9, 25),
+                connector=FutureRowConnector(),
+            )
+            self.assertFalse(report.passed)
+            self.assertEqual(report.errors, 1)
+            self.assertFalse(report.writes_performed)
 
 
 if __name__ == "__main__":

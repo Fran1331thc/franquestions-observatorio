@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from .connectors import BCCRConnector
 from .manual_import import compare_rows
 from .models import Series
-from .validation import validate_series
+from .validation import ValidationIssue, validate_series
 
 
 @dataclass(frozen=True)
@@ -62,6 +62,17 @@ def execute_bccr_shadow_check(
     client = connector or BCCRConnector()
     rows = client.fetch(indicator_code, start, end)
     issues = validate_series(rows, series.frequency)
+    for row in rows:
+        period = row.get("period")
+        if isinstance(period, date) and period > end:
+            issues.append(
+                ValidationIssue(
+                    "future_period",
+                    "error",
+                    "Periodo posterior al limite solicitado",
+                    period,
+                )
+            )
     comparison = compare_rows(session, slug, rows)
     return ShadowUpdateReport(
         slug=slug,
