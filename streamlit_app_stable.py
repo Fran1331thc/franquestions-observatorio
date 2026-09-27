@@ -694,14 +694,22 @@ if source_health["ok"]:
             )
             st.markdown("**Lista de revisión previa a cualquier autorización futura**")
             st.caption(
-                f"Fuente: {preview['source']} · indicador: {preview['indicator_code']} · "
-                f"periodo consultado: {preview['start']} a {preview['end']}."
+                f"Fuente: {preview.get('source', 'BCCR')} · "
+                f"indicador: {preview.get('indicator_code', '318')} · "
+                f"periodo consultado: {preview.get('start', 'no disponible')} a "
+                f"{preview.get('end', 'no disponible')}."
             )
-            st.dataframe(
-                pd.DataFrame(preview["review_checklist"]),
-                hide_index=True,
-                width="stretch",
-            )
+            if preview.get("review_checklist"):
+                st.dataframe(
+                    pd.DataFrame(preview["review_checklist"]),
+                    hide_index=True,
+                    width="stretch",
+                )
+            else:
+                st.info(
+                    "La lista detallada aparecerá al renovarse la consulta almacenada. "
+                    "El bloqueo de seguridad permanece activo."
+                )
 elif source_health["configured"]:
     st.info(
         "El conector del BCCR está configurado; la verificación de la fuente "
