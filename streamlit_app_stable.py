@@ -28,6 +28,7 @@ from fq_observatorio.shadow_audit import (
     load_shadow_audit,
     verify_shadow_audit,
 )
+from fq_observatorio.supervised_preview import build_supervised_preview
 
 
 APP_DIR = Path(__file__).resolve().parent
@@ -64,6 +65,29 @@ def bccr_read_only_shadow() -> dict:
     except Exception:
         return {"ok": False, "configured": True}
     return {"ok": report.passed, "configured": True, "report": report.as_dict()}
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def bccr_supervised_preview() -> dict:
+    """Construye candidatos visibles; por diseño no contiene una ruta de escritura."""
+    try:
+        token = str(st.secrets["FQ_BCCR_TOKEN"])
+    except Exception:
+        return {"ok": False, "configured": False}
+    end = costa_rica_today()
+    start = end - timedelta(days=45)
+    try:
+        with SessionLocal() as session:
+            preview = build_supervised_preview(
+                session,
+                start=start,
+                end=end,
+                audit_records=load_shadow_audit(SHADOW_AUDIT_LEDGER),
+                connector=BCCRConnector(settings=Settings(bccr_token=token)),
+            )
+    except Exception:
+        return {"ok": False, "configured": True}
+    return {"ok": True, "configured": True, "preview": preview}
 
 INDICATORS = {
     "exchange-rate": ("Tipo de cambio CRC/USD", "CRC por USD", "BCCR"),
@@ -630,6 +654,43 @@ if source_health["ok"]:
                 file_name="FQ_historial_pruebas_sombra_bccr.jsonl",
                 mime="application/x-ndjson",
                 width="stretch",
+            )
+    preview_state = bccr_supervised_preview()
+    with st.expander("Vista previa de actualización supervisada"):
+        if not preview_state["ok"]:
+            st.info("La vista previa no está disponible temporalmente.")
+        else:
+            preview = preview_state["preview"]
+            gate = preview["gate"]
+            if gate["ready"]:
+                st.success(
+                    "La evidencia mínima ya cumple la puerta de seguridad. "
+                    "La aplicación de cambios continúa deshabilitada en esta etapa."
+                )
+            else:
+                st.warning(
+                    f"Bloqueada: {gate['successful_days']}/{gate['required_days']} "
+                    "días satisfactorios e independientes."
+                )
+                for reason in gate["reasons"]:
+                    st.caption(f"• {reason}")
+            preview_columns = st.columns(4)
+            preview_columns[0].metric("Candidatos", len(preview["candidates"]))
+            preview_columns[1].metric("Sin cambios", preview["unchanged"])
+            preview_columns[2].metric("Advertencias", preview["warnings"])
+            preview_columns[3].metric("Errores", preview["errors"])
+            if preview["candidates"]:
+                st.dataframe(
+                    pd.DataFrame(preview["candidates"]),
+                    hide_index=True,
+                    width="stretch",
+                )
+            else:
+                st.info("La fuente y la base publicada no presentan diferencias.")
+            st.caption(
+                f"Último dato publicado: {preview['database_latest'] or 'sin datos'} · "
+                f"Último dato en la fuente: {preview['source_latest'] or 'sin datos'} · "
+                "Escrituras realizadas: 0. No existe un botón para aplicar cambios."
             )
 elif source_health["configured"]:
     st.info(
