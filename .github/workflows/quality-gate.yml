@@ -1,0 +1,36 @@
+name: Public beta quality gate
+
+on:
+  push:
+    branches:
+      - stable-public
+  pull_request:
+    branches:
+      - stable-public
+
+permissions:
+  contents: read
+
+concurrency:
+  group: public-beta-quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify-public-beta:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install application dependencies
+        run: pip install -r requirements.txt
+      - name: Run the complete test suite
+        env:
+          PYTHONPATH: .
+        run: python -m unittest discover -s tests -p "test_*.py"
+      - name: Rehearse database recovery without changing the source
+        env:
+          PYTHONPATH: .
+        run: python scripts/rehearse_sqlite_recovery.py franquestions.db
