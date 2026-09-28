@@ -25,6 +25,10 @@ jobs:
           cache: pip
       - name: Install application dependencies
         run: pip install -r requirements.txt
+      - name: Rehearse database recovery without changing the source
+        env:
+          PYTHONPATH: .
+        run: python scripts/rehearse_sqlite_recovery.py franquestions.db
       - name: Run read-only BCCR shadow check
         env:
           FQ_BCCR_TOKEN: ${{ secrets.FQ_BCCR_TOKEN }}
