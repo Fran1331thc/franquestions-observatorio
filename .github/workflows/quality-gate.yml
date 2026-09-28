@@ -36,7 +36,7 @@ jobs:
         run: python scripts/rehearse_sqlite_recovery.py franquestions.db
       - name: Check public Streamlit availability
         env:
-          HEALTH_URL: https://franquestions-observatorio-v2.streamlit.app/_stcore/health
+          HEALTH_URL: https://franquestions-observatorio-v2.streamlit.app/~/+/_stcore/health
         run: |
           for attempt in {1..6}; do
             response="$(curl --fail --silent --show-error --location --max-time 30 "$HEALTH_URL" || true)"
