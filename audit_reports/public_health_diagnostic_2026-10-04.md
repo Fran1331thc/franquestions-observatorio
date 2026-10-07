@@ -1,6 +1,6 @@
 # Diagnóstico operativo de la comprobación pública de Streamlit
 
-Fecha del diagnóstico: 2026-10-04 (America/Costa_Rica).
+Fecha del diagnóstico inicial: 2026-10-04. Actualización confirmatoria: 2026-10-07 (America/Costa_Rica).
 
 Este documento se limita a disponibilidad pública y observabilidad del chequeo. No evalúa los CT metodológicos, las pruebas comerciales ni la propuesta futura Data Intake Gate.
 
@@ -13,7 +13,22 @@ Se confirmaron dos fallos de acceso observados por el chequeo, con respuestas di
 
 No hay evidencia de una caída continua de la aplicación. El primer fallo fue seguido esa misma noche por dos ejecuciones satisfactorias. El segundo ocurrió después de cinco ejecuciones diarias satisfactorias con el mismo commit. El 2026-10-04 a la 01:44 CST la ruta de salud alojada respondió HTTP 200, cuerpo `ok`, sin redirecciones; a la 01:46 CST la aplicación cargó manualmente en navegador.
 
-La causa externa exacta de los dos episodios no puede confirmarse con los registros disponibles. Sí se confirmó un defecto del chequeo: sus mensajes ocultaban código HTTP, duración y cadena de redirecciones. Se corrigió esa falta de observabilidad y se mantuvo como ruta canónica de Streamlit Cloud `/~/+/_stcore/health`.
+La causa externa exacta del episodio de redirecciones del 27 de septiembre no puede confirmarse retrospectivamente. El 7 de octubre sí se confirmó directamente que la aplicación estaba dormida por inactividad: Streamlit mostró `This app has gone to sleep due to inactivity`, mientras el endpoint alojado devolvía HTTP 400. Tras reactivarla, el mismo endpoint respondió HTTP 200 `ok` y la repetición de GitHub Actions terminó satisfactoriamente. Este comportamiento explica el fallo actual y es consistente con el HTTP 400 del 3 de octubre, aunque el estado visual de aquella fecha no quedó registrado.
+
+También se confirmó un defecto del chequeo anterior: sus mensajes ocultaban código HTTP, duración y cadena de redirecciones. Se corrigió esa falta de observabilidad y se mantuvo como ruta canónica de Streamlit Cloud `/~/+/_stcore/health`.
+
+## Confirmación y corrección del 2026-10-07
+
+| Hora Costa Rica | Origen | URL/acción | Evidencia | Duración | Resultado |
+|---|---|---|---|---:|---|
+| 01:11:59–01:12:50 CST | GitHub Actions, run `37585797891`, intento 1 | `/~/+/_stcore/health` | Seis respuestas HTTP 400, cuerpo vacío, cero redirecciones | 177–294ms por solicitud; paso 51s por las cinco esperas | Fallo |
+| 01:14:25 CST | Diagnóstico sin cookies | `/~/+/_stcore/health` | HTTP 400, cuerpo vacío, cero redirecciones | 570ms | Fallo |
+| 01:14:29 CST | Diagnóstico sin cookies | `/_stcore/health` | Circuito HTTP 303 hacia autenticación/login | 4.781s hasta cortar; >10 redirecciones | Fallo |
+| 01:15 CST | Interfaz de Streamlit | Portada | Mensaje literal: `This app has gone to sleep due to inactivity` | No aplica | Causa actual confirmada |
+| 01:15:28 CST | Diagnóstico sin cookies, después de reactivar | `/~/+/_stcore/health` | HTTP 200, cuerpo `ok`, cero redirecciones | 318ms | Éxito |
+| 01:16–01:17 CST | GitHub Actions, run `37585797891`, intento 2 | Suite completa + endpoint | Suite, recuperación y chequeo público satisfactorios | 46s total | Éxito |
+
+Commit remoto verificado: `10f1b4d4485435fa996ae0b0466d67b11f18e15f` en `stable-public`.
 
 ## Evidencia original
 
@@ -57,15 +72,17 @@ Los valores de consultas en redirecciones se redactan deliberadamente. No se gua
 
 ### Hipótesis aún no confirmadas
 
-- Estado transitorio de autenticación, enrutamiento o borde de Streamlit Community Cloud.
-- Respuesta temporal de la plataforma al despertar o enrutar la aplicación.
+- Que el fallo HTTP 400 del 3 de octubre también correspondiera a reposo por inactividad. Es consistente con la reproducción del 7 de octubre, pero no existe captura de la pantalla de reposo de aquella fecha.
+- Que el bucle del 27 de septiembre tuviera el mismo origen. El síntoma fue distinto y no debe agruparse sin evidencia adicional.
 
 No existe evidencia suficiente para elegir entre estas hipótesis ni para atribuir el incidente al código de FranQuestions.
 
 ### Causa confirmada
 
+- **Del fallo reproducido el 7 de octubre:** reposo automático de Streamlit Community Cloud por inactividad.
 - **De la baja calidad diagnóstica:** el script ocultaba los metadatos necesarios. Esto está confirmado por su implementación y por los registros originales.
-- **De los dos eventos externos:** no confirmada. Los síntomas originales son diferentes y el comportamiento posterior fue satisfactorio.
+- **Del HTTP 400 del 3 de octubre:** causa probable, no confirmada retrospectivamente, de reposo por inactividad.
+- **Del bucle del 27 de septiembre:** no confirmada.
 
 ## Cambio aplicado
 
@@ -81,6 +98,6 @@ No hay evidencia de pérdida de datos, corrupción del Observatorio ni fallo de 
 
 ## Pendientes
 
-1. Confirmar la siguiente ejecución programada de `shadow-check` con el registro enriquecido.
+1. Confirmar la siguiente ejecución programada de `shadow-check` con el registro enriquecido; el workflow en `main` todavía debe recibir la misma instrumentación que `stable-public`.
 2. Si vuelve a fallar, conservar el JSON del intento y comparar código, ruta y cadena de redirecciones antes de atribuir causa.
 3. Considerar dos señales separadas en una ronda posterior: salud técnica (`ok`) y acceso anónimo real a la portada. No ampliar ahora el alcance de la beta.
